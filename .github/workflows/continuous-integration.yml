@@ -18,7 +18,7 @@ jobs:
       - name: Build
         run: cmake --build build --target install
       - name: Test run
-        run: ${{ github.workspace }}/artifact/edge_tunnel_client.exe"
+        run: ${{ github.workspace }}/artifact/edge_tunnel_client.exe
       - uses: actions/upload-artifact@v2
         with:
           name: windows-artifact
