@@ -34,8 +34,8 @@ if(WIN32)
     install(TARGETS edge_tunnel_client RUNTIME DESTINATION .)
     install(FILES ${CMAKE_SOURCE_DIR}/lib/windows/nabto_client.dll DESTINATION .)
 elseif(UNIX AND NOT APPLE)
-    install(TARGETS edge_tunnel_client RUNTIME DESTINATION .)
-    install(FILES ${CMAKE_SOURCE_DIR}/lib/linux/libnabto_client.so DESTINATION .
-            FILE_PERMISSIONS OWNER_READ OWNER_WRITE OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+    install(TARGETS edge_tunnel_client RUNTIME DESTINATION .
+            PERMISSIONS OWNER_WRITE OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
+    install(FILES ${CMAKE_SOURCE_DIR}/lib/linux/libnabto_client.so DESTINATION .)
 elseif(APPLE)
 endif()
