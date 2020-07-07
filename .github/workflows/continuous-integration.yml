@@ -14,11 +14,11 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Configure cmake
-        run: mkdir build && cd build && cmake -DCMAKE_INSTALL_PREFIX=../install ..
+        run: mkdir build && cd build && cmake -DCMAKE_INSTALL_PREFIX=$env:HOME/install ..
       - name: Build
         run: cmake --build build --target install
       - name: Test run
-        run: ./install/edge_tunnel_client.exe
+        run: $env:HOME/install/edge_tunnel_client.exe
 
   build-linux:
     name: Linux Build
@@ -27,8 +27,8 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Configure cmake
-        run: mkdir build && cd build && cmake -DCMAKE_INSTALL_PREFIX=../install ..
+        run: mkdir build && cd build && cmake -DCMAKE_INSTALL_PREFIX=$HOME/install ..
       - name: Build
         run: cmake --build build --target install
       - name: Test run
-        run: ./install/edge_tunnel_client
+        run: $HOME/install/edge_tunnel_client
