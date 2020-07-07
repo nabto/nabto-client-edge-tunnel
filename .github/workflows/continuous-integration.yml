@@ -40,3 +40,20 @@ jobs:
         with:
           name: linux-artifact
           path: ${{ github.workspace }}/artifact/
+
+  build-mac:
+    name: MacOS Build
+    runs-on: macos-10.15
+
+    steps:
+      - uses: actions/checkout@v2
+      - name: Configure cmake
+        run: mkdir build && cd build && cmake -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/artifact ..
+      - name: Build
+        run: cmake --build build --target install
+      - name: Test run
+        run: ${{ github.workspace }}/artifact/edge_tunnel_client
+      - uses: actions/upload-artifact@v2
+        with:
+          name: macos-artifact
+          path: ${{ github.workspace }}/artifact/
