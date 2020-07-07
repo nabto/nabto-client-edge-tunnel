@@ -14,11 +14,15 @@ jobs:
     steps:
       - uses: actions/checkout@v2
       - name: Configure cmake
-        run: mkdir build && cd build && cmake -DCMAKE_INSTALL_PREFIX="$env:HOME/install" ..
+        run: mkdir build && cd build && cmake -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/artifact ..
       - name: Build
         run: cmake --build build --target install
       - name: Test run
-        run: Invoke-Expression "$env:HOME/install/edge_tunnel_client.exe"
+        run: ${{ github.workspace }}/artifact/edge_tunnel_client.exe"
+      - uses: actions/upload-artifact@v2
+        with:
+          name: windows-artifact
+          path: ${{ github.workspace }}/artifact/
 
   build-linux:
     name: Linux Build
