@@ -22,7 +22,7 @@ endif()
 
 set(src
     src/edge_tunnel.cpp
-    src/json_config.cpp
+    src/config.cpp
     src/pairing.cpp
     src/timestamp.cpp
 )

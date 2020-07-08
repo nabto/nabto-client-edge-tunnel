@@ -2,7 +2,7 @@
 #include <nabto/nabto_client_experimental.h>
 
 #include "pairing.hpp"
-#include "json_config.hpp"
+#include "config.hpp"
 #include "timestamp.hpp"
 
 #include <3rdparty/cxxopts.hpp>
@@ -91,31 +91,34 @@ class CloseListener : public nabto::client::ConnectionEventsCallback {
     std::promise<void> promise_;
 };
 
-std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabto::client::Context> context, const std::string& configFile, const std::string& stateFile)
+std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabto::client::Context> context)
 {
-    json config;
-    if(!json_config_load(configFile, config)) {
-        printMissingClientConfig(configFile);
+    Configuration::ConfigInfo Config;
+    if (!Configuration::GetConfigInfo(&Config)) {
+        printMissingClientConfig(Configuration::GetConfigFilePath());
         return nullptr;
     }
-    json state;
-    if(!json_config_load(stateFile, state)) {
-        std::cerr << "Cannot read the state file (" << stateFile << "). Is the client paired with the device?" << std::endl;
+
+    auto Device = Configuration::GetPairedDevice(0);
+    if (!Device)
+    {
+        std::cerr << "This client is not paired with any devices." << std::endl;
         return nullptr;
     }
 
     auto connection = context->createConnection();
-    connection->setProductId(state["ProductId"].get<std::string>());
-    connection->setDeviceId(state["DeviceId"].get<std::string>());
-    try {
-        std::string url = config["ServerUrl"].get<std::string>();
-        connection->setServerUrl(url);
-    } catch (...) {
-        //Ignore missing server key, api should assign one
+    connection->setProductId(Device->ProductID);
+    connection->setDeviceId(Device->DeviceID);
+    if (Config.ServerUrl) {
+        connection->setServerUrl(Config.ServerUrl);
     }
-    connection->setServerKey(config["ServerKey"].get<std::string>());
-    connection->setServerConnectToken(state["ServerConnectToken"].get<std::string>());
-    connection->setPrivateKey(state["PrivateKey"].get<std::string>());
+    else
+    {
+        // TODO(as): ServerUrl was not found.
+    }
+    connection->setServerKey(Config.ServerKey);
+    connection->setServerConnectToken(Device->ServerConnectToken);
+    connection->setPrivateKey(Device->PrivateKey);
     try {
         connection->connect()->waitForResult();
     } catch (nabto::client::NabtoException& e) {
@@ -132,7 +135,7 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
     }
 
     try {
-        if (connection->getDeviceFingerprintFullHex() != state["DeviceFingerprint"].get<std::string>()) {
+        if (connection->getDeviceFingerprintFullHex() != Device->DeviceFingerprint) {
             std::cerr << "device fingerprint does not match the paired fingerprint." << std::endl;
             return nullptr;
         }
@@ -238,7 +241,9 @@ int main(int argc, char** argv)
     options.add_options("TCP Tunnelling")
         ("list-services", "List available services on the device")
         ("service", "Create a tunnel to this service", cxxopts::value<std::string>())
-        ("local-port", "Local port to bind tcp listener to", cxxopts::value<uint16_t>()->default_value("0"));
+        ("local-port", "Local port to bind tcp listener to", cxxopts::value<uint16_t>()->default_value("0"))
+        ;
+
 
     try {
         auto result = options.parse(argc, argv);
@@ -254,6 +259,7 @@ int main(int argc, char** argv)
             return 0;
         }
 
+        Configuration::Initialize(result["config"].as<std::string>(), result["state"].as<std::string>());
         auto context = nabto::client::Context::create();
 
         context->setLogger(std::make_shared<MyLogger>());
@@ -264,20 +270,23 @@ int main(int argc, char** argv)
         if (user != NULL) {
             userName = std::string(user);
         }
+
         if (result.count("pair")) {
-            if (!nabto::examples::common::interactive_pair(context, result["state"].as<std::string>(), userName)) {
+            if (!interactive_pair(context, userName)) {
                 return 1;
             }
             return 0;
-        } else  if (result.count("pair-url")) {
-            if (!nabto::examples::common::link_pair(context, result["config"].as<std::string>(), result["state"].as<std::string>(), userName, result["pair-url"].as<std::string>())) {
+        }
+        else if (result.count("pair-url")) {
+            if (!link_pair(context, userName, result["pair-url"].as<std::string>())) {
                 return 1;
             }
             return 0;
-        } else if (result.count("list-services") ||
-                   result.count("service"))
+        }
+        else if (result.count("list-services") ||
+                 result.count("service"))
         {
-            auto connection = createConnection(context, result["config"].as<std::string>(), result["state"].as<std::string>());
+            auto connection = createConnection(context);
             if (!connection) {
                 return 1;
             }
