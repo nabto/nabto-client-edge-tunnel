@@ -234,6 +234,7 @@ int main(int argc, char** argv)
         ("c,config", "Configutation File", cxxopts::value<std::string>()->default_value("client.json"))
         ("s,state", "State File", cxxopts::value<std::string>()->default_value("tcp_tunnel_client_state.json"))
         ("log-level", "Log level (none|error|info|trace)", cxxopts::value<std::string>()->default_value("error"))
+        ("bookmarks", "List bookmarked devices")
         ("pair", "Pair the client with a tcptunnel device interactively")
         ("pair-url", "Pair with a tcptunnel device using an URL", cxxopts::value<std::string>())
         ;
@@ -260,6 +261,12 @@ int main(int argc, char** argv)
         }
 
         Configuration::Initialize(result["config"].as<std::string>(), result["state"].as<std::string>());
+        if (result.count("bookmarks"))
+        {
+            Configuration::PrintBookmarks();
+            return 0;
+        }
+
         auto context = nabto::client::Context::create();
 
         context->setLogger(std::make_shared<MyLogger>());

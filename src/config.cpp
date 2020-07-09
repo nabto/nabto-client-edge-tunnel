@@ -5,10 +5,15 @@
 #include <fstream>
 #include <cstdio>
 #include <iostream>
+#include <iomanip>
 
 using json = nlohmann::json;
 using string = std::string;
 
+// TODO(as): Implement OS platform layer for a smoother experience?
+// Instead of using the C++ std stuff (which won't be perfect across platforms)
+// have a WriteStringToFile() and LoadEntireFile() which calls the relevant POSIX/win32 functions
+// and use C++ std as a fallback.
 namespace Configuration
 {
     void to_json(json& j, const DeviceInfo& d)
@@ -129,7 +134,6 @@ namespace Configuration
         return Configuration.StateFilePath.c_str();
     }
 
-    // TODO(as): lock file before writing.
     bool WriteStateFile()
     {
         json BookmarksArray = json::array();
@@ -150,6 +154,7 @@ namespace Configuration
         }
 
         try {
+            std::remove(Configuration.StateFilePath.c_str());
             std::rename(TemporaryFileName, Configuration.StateFilePath.c_str());
             Status = true;
         }
@@ -165,7 +170,6 @@ namespace Configuration
         }
 
         return Status;
-
     }
 
     DeviceInfo *GetPairedDevice(int Index)
@@ -182,6 +186,31 @@ namespace Configuration
 
     void AddPairedDeviceToBookmarks(DeviceInfo Info)
     {
+        for (size_t Index = 0; Index < Configuration.Bookmarks.size(); ++Index)
+        {
+            if (Configuration.Bookmarks[Index].DeviceID == Info.DeviceID)
+            {
+                Configuration.Bookmarks[Index] = Info;
+                return;
+            }
+        }
         Configuration.Bookmarks.push_back(Info);
+    }
+
+    void PrintBookmarks()
+    {
+        if (Configuration.Bookmarks.empty())
+        {
+            std::cout << "No bookmarked devices were found. Maybe you should pair with a few devices?" << std::endl;
+            return;
+        }
+
+        int Index = 0;
+        std::cout << "The following devices are saved in your bookmarks:" << std::endl;
+        for (auto Bookmark : Configuration.Bookmarks)
+        {
+            std::cout << "[" << Index << "]:  ProductId: " << Bookmark.ProductID << " DeviceId: " << Bookmark.ProductID << std::endl;
+            Index++;
+        }
     }
 }

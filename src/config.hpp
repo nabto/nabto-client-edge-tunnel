@@ -22,4 +22,5 @@ namespace Configuration {
     bool WriteStateFile();
     DeviceInfo *GetPairedDevice(int Index);
     void AddPairedDeviceToBookmarks(DeviceInfo Info);
+    void PrintBookmarks();
 }
