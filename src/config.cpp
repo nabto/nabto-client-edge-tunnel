@@ -209,7 +209,7 @@ namespace Configuration
         std::cout << "The following devices are saved in your bookmarks:" << std::endl;
         for (auto Bookmark : Configuration.Bookmarks)
         {
-            std::cout << "[" << Index << "]:  ProductId: " << Bookmark.ProductID << " DeviceId: " << Bookmark.ProductID << std::endl;
+            std::cout << "[" << Index << "] ProductId: " << Bookmark.ProductID << " DeviceId: " << Bookmark.DeviceID << std::endl;
             Index++;
         }
     }

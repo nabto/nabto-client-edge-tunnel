@@ -91,7 +91,7 @@ class CloseListener : public nabto::client::ConnectionEventsCallback {
     std::promise<void> promise_;
 };
 
-std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabto::client::Context> context)
+std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabto::client::Context> context, uint32_t SelectedBookmark)
 {
     Configuration::ConfigInfo Config;
     if (!Configuration::GetConfigInfo(&Config)) {
@@ -99,10 +99,15 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
         return nullptr;
     }
 
-    auto Device = Configuration::GetPairedDevice(0);
+    auto Device = Configuration::GetPairedDevice(SelectedBookmark);
     if (!Device)
     {
-        std::cerr << "This client is not paired with any devices." << std::endl;
+        std::cerr << "This client does not have a device with bookmark index " << SelectedBookmark << std::endl;
+        if (SelectedBookmark == 0)
+        {
+            // If no bookmark was found at index 0, then this client isn't paired with anything.
+            std::cerr << "This client has no bookmarked devices, maybe you should try pairing with a device?" << std::endl;
+        }
         return nullptr;
     }
 
@@ -153,7 +158,6 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
 
 static void get_service(std::shared_ptr<nabto::client::Connection> connection, const std::string& service);
 static void print_service(const nlohmann::json& service);
-
 
 bool list_services(std::shared_ptr<nabto::client::Connection> connection)
 {
@@ -234,7 +238,8 @@ int main(int argc, char** argv)
         ("c,config", "Configutation File", cxxopts::value<std::string>()->default_value("client.json"))
         ("s,state", "State File", cxxopts::value<std::string>()->default_value("tcp_tunnel_client_state.json"))
         ("log-level", "Log level (none|error|info|trace)", cxxopts::value<std::string>()->default_value("error"))
-        ("bookmarks", "List bookmarked devices")
+        ("list-bookmarks", "List bookmarked devices")
+        ("b,bookmark", "Select a bookmarked device to use with other commands.", cxxopts::value<uint32_t>()->default_value("0"))
         ("pair", "Pair the client with a tcptunnel device interactively")
         ("pair-url", "Pair with a tcptunnel device using an URL", cxxopts::value<std::string>())
         ;
@@ -261,7 +266,7 @@ int main(int argc, char** argv)
         }
 
         Configuration::Initialize(result["config"].as<std::string>(), result["state"].as<std::string>());
-        if (result.count("bookmarks"))
+        if (result.count("list-bookmarks"))
         {
             Configuration::PrintBookmarks();
             return 0;
@@ -293,7 +298,7 @@ int main(int argc, char** argv)
         else if (result.count("list-services") ||
                  result.count("service"))
         {
-            auto connection = createConnection(context);
+            auto connection = createConnection(context, result["bookmark"].as<uint32_t>());
             if (!connection) {
                 return 1;
             }
