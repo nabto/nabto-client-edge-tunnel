@@ -19,7 +19,7 @@ using json = nlohmann::json;
 
 namespace IAM
 {
-    bool yn_prompt(std::string &message)
+    bool yn_prompt(const std::string &message)
     {
         char answer = 0;
         do
@@ -33,7 +33,7 @@ namespace IAM
     }
 
 
-    void print_coap_error(std::string &path, int responseCode)
+    void print_coap_error(const std::string &path, int responseCode)
     {
         std::cout << "The CoAP request to " << path << " returned response code: "
         << responseCode << std::endl;
@@ -151,7 +151,7 @@ namespace IAM
     {
         std::stringstream pathStream{};
         pathStream << "/iam/users/" << user << "/roles/" << role;
-        std::string &path = pathStream.str();
+        const std::string &path = pathStream.str();
 
         char answer;
         std::stringstream message{};
@@ -217,7 +217,7 @@ namespace IAM
     {
         std::stringstream pathStream{};
         pathStream << "/iam/users/" << user << "/roles/" << role;
-        std::string &path = pathStream.str();
+        const std::string &path = pathStream.str();
 
         std::stringstream message{};
         message << "Remove role \"" << role << "\" from user \"" << user << "\"? ";
@@ -280,7 +280,7 @@ namespace IAM
     {
         std::stringstream pathStream{};
         pathStream << "/iam/users/" << user;
-        std::string &path = pathStream.str();
+        const std::string &path = pathStream.str();
 
         std::stringstream message{};
         message << "Delete user \"" << user << "\"? ";

@@ -7,7 +7,7 @@ using std::string;
 
 namespace Platform
 {
-    bool WriteStringToFile(string& String, string& Filename)
+    bool WriteStringToFile(const string& String, const string& Filename)
     {
         HANDLE File;
         DWORD BytesToWrite = String.length();
@@ -87,7 +87,7 @@ namespace Platform
         }
     }
 
-    FileContents ReadEntireFileZeroTerminated(string& Filename)
+    FileContents ReadEntireFileZeroTerminated(const string& Filename)
     {
         FileContents Result = {};
         HANDLE File = CreateFile(Filename.c_str(),

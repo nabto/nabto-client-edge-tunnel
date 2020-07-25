@@ -9,7 +9,7 @@ namespace Platform
         char *Buffer;
     };
 
-    bool WriteStringToFile(std::string& String, std::string& Filename);
+    bool WriteStringToFile(const std::string& String, const std::string& Filename);
     void FreeFileMemory(FileContents *File);
-    FileContents ReadEntireFileZeroTerminated(std::string& Filename);
+    FileContents ReadEntireFileZeroTerminated(const std::string& Filename);
 }

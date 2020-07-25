@@ -7,7 +7,7 @@ using std::string;
 
 namespace Platform
 {
-    bool WriteStringToFile(string& String, string& Filename)
+    bool WriteStringToFile(const string& String, const string& Filename)
     {
         bool Status = false;
         string TemporaryFileName = Filename + ".tmp";
@@ -41,7 +41,7 @@ namespace Platform
         }
     }
 
-    FileContents ReadEntireFileZeroTerminated(string& Filename)
+    FileContents ReadEntireFileZeroTerminated(const string& Filename)
     {
         FileContents Result = {};
 
