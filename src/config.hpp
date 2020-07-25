@@ -1,8 +1,10 @@
 #pragma once
 #include <string>
 
-namespace Configuration {
-    struct DeviceInfo {
+namespace Configuration
+{
+    struct DeviceInfo
+    {
         std::string DeviceID;
         std::string ProductID;
         std::string PrivateKey;
@@ -10,7 +12,8 @@ namespace Configuration {
         std::string ServerConnectToken;
     };
 
-    struct ConfigInfo {
+    struct ConfigInfo
+    {
         const char* ServerKey;
         const char* ServerUrl;
     };

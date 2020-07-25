@@ -7,6 +7,8 @@
 #include <iostream>
 #include <iomanip>
 
+#include "platform.hpp"
+
 using json = nlohmann::json;
 using string = std::string;
 
@@ -96,19 +98,14 @@ namespace Configuration
             return true;
         }
 
-        json Contents;
-        try
-        {
-            std::ifstream ConfigFileStream(Configuration.ConfigFilePath);
-            ConfigFileStream >> Contents;
-        }
-        catch (...)
-        {
-            // TODO(as): We don't have a config file or it's invalid, what now?
-            // * Print an error and ask the user to supply a proper config file.
-            // * Let the user input the required config details, and create the config file from the input.
+        Platform::FileContents ConfigFile = Platform::ReadEntireFileZeroTerminated(Configuration.ConfigFilePath);
+
+        if (!ConfigFile.Buffer) {
             return false;
         }
+
+        json Contents = json::parse(ConfigFile.Buffer);
+        FreeFileMemory(&ConfigFile);
 
         if (Contents.find("ServerUrl") != Contents.end()) {
             Configuration.ServerUrl = Contents["ServerUrl"].get<string>();
@@ -142,34 +139,7 @@ namespace Configuration
         }
         json Contents = { {"devices", BookmarksArray} };
 
-        const char* TemporaryFileName = "tcp_state_file_temporary.json";
-        bool Status = false;
-        std::remove(TemporaryFileName);
-        try {
-            std::ofstream StateFile(TemporaryFileName);
-            StateFile << Contents.dump(2);
-        }
-        catch (...) {
-            // TODO(as): error-checking.
-        }
-
-        try {
-            std::remove(Configuration.StateFilePath.c_str());
-            std::rename(TemporaryFileName, Configuration.StateFilePath.c_str());
-            Status = true;
-        }
-        catch (...) {
-            // TODO(as): error-checking.
-        }
-
-        try {
-            std::remove(TemporaryFileName);
-        }
-        catch (...) {
-            // TODO(as): error-checking.
-        }
-
-        return Status;
+        return Platform::WriteStringToFile(Contents.dump(2), Configuration.StateFilePath);
     }
 
     DeviceInfo *GetPairedDevice(int Index)

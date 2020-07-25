@@ -35,8 +35,7 @@ namespace Platform
 
     void FreeFileMemory(FileContents *File)
     {
-        if (File->Buffer)
-        {
+        if (File->Buffer) {
             delete[] File->Buffer;
             File->Buffer = nullptr;
         }
@@ -47,29 +46,33 @@ namespace Platform
         FileContents Result = {};
 
         std::ifstream InputStream(Filename);
-        if (InputStream)
-        {
+        if (InputStream) {
+            bool Success = true;
             InputStream.seekg(0, std::ios::end);
             Result.Size = InputStream.tellg();
             InputStream.seekg(0, std::ios::beg);
-            Result.Buffer = new (std::nothrow) char[Result.Size + 1];
-            if (Result.Buffer)
-            {
-                InputStream.read(Result.Buffer, Result.Size);
-                if (!InputStream)
-                {
-                    FreeFileMemory(&Result);
-                    // TODO(as): Logging.
-                }
+            Result.Buffer = new (std::nothrow) char[Result.Size + 1]();
 
-                Result.Buffer[Result.Size] = 0;
+            if (Result.Buffer) {
+                InputStream.read(Result.Buffer, Result.Size);
+                if (!InputStream && !InputStream.eof()) {
+                    Success = false;
+                    std::cout << "Could not read input stream for file " << Filename << std::endl;
+                }
+            } else {
+                std::cout << "Could not allocate memory for loading file " << Filename << std::endl;
+                Success = false;
             }
-            else
-            {
-                FreeFileMemory(&Result);
-                // TODO(as): Logging.
-            }
+
             InputStream.close();
+
+            if (!Success) {
+                FreeFileMemory(&Result);
+                Result.Size = 0;
+                Result.Buffer = nullptr;
+            }
+        } else {
+            std::cout << "Could not open input stream for file " << Filename << std::endl;
         }
 
         return Result;
