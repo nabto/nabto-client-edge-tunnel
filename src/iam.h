@@ -9,5 +9,5 @@ namespace IAM
     bool list_roles(std::shared_ptr<nabto::client::Connection> connection);
     bool add_role_to_user(std::shared_ptr<nabto::client::Connection> connection, const std::string &user, const std::string &role);
     bool remove_role_from_user(std::shared_ptr<nabto::client::Connection> connection, const std::string &user, const std::string &role);
-    bool delete_user_with_prompt(std::shared_ptr<nabto::client::Connection> connection, const std::string &user);
+    bool delete_user(std::shared_ptr<nabto::client::Connection> connection, const std::string &user);
 }

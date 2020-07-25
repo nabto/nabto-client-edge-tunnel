@@ -5,10 +5,34 @@
 
 #include <3rdparty/nlohmann/json.hpp>
 
+/* IAM module
+ * Potential complications: 
+ * - Most of the functionality in this module must be made available by changing
+ *   the device's policies file.
+ * Future improvements:
+ * - A generic error is printed for the exception catchers, this should
+ *   probably be made more user-friendly?
+ * - Improve the module API by exposing more CoAP requests (such as getting a user's info).
+ */
+
 using json = nlohmann::json;
 
 namespace IAM
 {
+    bool yn_prompt(std::string &message)
+    {
+        char answer = 0;
+        do
+        {
+            std::cout << message << " [y/n]: ";
+            std::cin >> answer;
+        }
+        while (!std::cin.fail() && answer != 'y' && answer != 'n');
+
+        return answer == 'y';
+    }
+
+
     void print_coap_error(std::string &path, int responseCode)
     {
         std::cout << "The CoAP request to " << path << " returned response code: "
@@ -37,9 +61,14 @@ namespace IAM
             {
                 case 205:
                 {
-                    // TODO(ahs): pretty print the list instead of dumping json directly.
                     auto cbor = coap->getResponsePayload();
-                    std::cout << json::from_cbor(cbor).dump(2);
+                    std::cout << "Listing all users..." << std::endl;
+                    json user_list = json::from_cbor(cbor);
+                    int i = 1;
+                    for (auto &user : user_list)
+                    {
+                        std::cout << "[" << i++ << "] UserID: " << user.get<std::string>() << std::endl;;
+                    }
                     result = true;
                     break;
                 }
@@ -82,10 +111,15 @@ namespace IAM
             {
                 case 205:
                 {
-                    // TODO(ahs): pretty print the list instead of dumping json directly.
                     auto cbor = coap->getResponsePayload();
-                    std::cout << json::from_cbor(cbor).dump(2);
-                    result = true;
+                    std::cout << "Listing available roles..." << std::endl;
+                    json role_list = json::from_cbor(cbor);
+                    int i = 1;
+                    for (auto &role : role_list)
+                    {
+                        std::cout << "[" << i++ << "]: " << role.get<std::string>() << std::endl;;
+                    }
+                   result = true;
                     break;
                 }
 
@@ -117,18 +151,14 @@ namespace IAM
     {
         std::stringstream pathStream{};
         pathStream << "/iam/users/" << user << "/roles/" << role;
-
         std::string &path = pathStream.str();
 
-        char Answer = 0;
-        do
-        {
-            std::cout << "Really add role \"" << role << "\" to user \"" << user <<"\"? [y/n]" << std::endl;
-            std::cin >> Answer;
-        }
-        while (!std::cin.fail() && Answer != 'y' && Answer != 'n');
+        char answer;
+        std::stringstream message{};
+        message << "Add role \"" << role << "\" to user \"" << user << "\"? ";
+        bool yes = yn_prompt(message.str());
 
-        if (Answer == 'y')
+        if (yes)
         {
             bool status = false;
             auto coap = connection->createCoap("PUT", path);
@@ -170,7 +200,6 @@ namespace IAM
             }
             catch (...)
             {
-                // TODO(ahs): this should be expanded on to let the user know what's going on.
                 std::cerr << "An unknown error occurred." << std::endl;
             }
 
@@ -183,16 +212,125 @@ namespace IAM
         }
     }
 
-    // TODO(ahs): implement these.
     bool remove_role_from_user(std::shared_ptr<nabto::client::Connection> connection,
                                const std::string &user, const std::string &role)
     {
+        std::stringstream pathStream{};
+        pathStream << "/iam/users/" << user << "/roles/" << role;
+        std::string &path = pathStream.str();
+
+        std::stringstream message{};
+        message << "Remove role \"" << role << "\" from user \"" << user << "\"? ";
+        bool yes = yn_prompt(message.str());
+        if (yes)
+        {
+            bool status = false;
+            auto coap = connection->createCoap("DELETE", path);
+            try
+            {
+                coap->execute()->waitForResult();
+                int responseCode = coap->getResponseStatusCode();
+                switch (responseCode)
+                {
+                    case 202:
+                    {
+                        std::cout << "Success." << std::endl;
+                        status = true;
+                        break;
+                    }
+
+                    case 403:
+                    {
+                        std::cout
+                        << "The request to DELETE from "
+                        << path << " was denied."
+                        << std::endl;
+                        print_error_access_denied();
+                        break;
+                    }
+
+                    case 500:
+                    {
+                        std::cout
+                        << "The request returned error 500.\n"
+                        << "Are you sure you typed in the right role id and user id?"
+                        << std::endl;
+                        break;
+                    }
+                }
+            }
+            catch (...)
+            {
+                std::cerr << "An unknown error occurred." << std::endl;
+            }
+
+            return status;
+        }
+        else
+        {
+            std::cout << "Action cancelled." << std::endl;
+            return true;
+        }
+
         return false;
     }
 
-    bool delete_user_with_prompt(std::shared_ptr<nabto::client::Connection> connection,
+    bool delete_user(std::shared_ptr<nabto::client::Connection> connection,
                                  const std::string &user)
     {
+        std::stringstream pathStream{};
+        pathStream << "/iam/users/" << user;
+        std::string &path = pathStream.str();
+
+        std::stringstream message{};
+        message << "Delete user \"" << user << "\"? ";
+        bool yes = yn_prompt(message.str());
+        if (yes)
+        {
+            bool status = false;
+            auto coap = connection->createCoap("DELETE", path);
+            try
+            {
+                coap->execute()->waitForResult();
+                int responseCode = coap->getResponseStatusCode();
+                switch(responseCode)
+                {
+                    case 202:
+                    {
+                        std::cout << "Success." << std::endl;
+                        status = true;
+                        break;
+                    }
+
+                    case 403:
+                    {
+                        std::cout
+                        << "The request to DELETE from"
+                        << path << "was denied."
+                        << std::endl;
+                        print_error_access_denied();
+                        break;
+                    }
+
+                    default:
+                    {
+                        print_coap_error(path, responseCode);
+                        break;
+                    }
+                }
+            }
+            catch (...)
+            {
+                std::cerr << "An unknown error occurred." << std::endl;
+            }
+            return status;
+        }
+        else
+        {
+            std::cout << "Action cancelled." << std::endl;
+            return true;
+        }
         return false;
     }
 }
+

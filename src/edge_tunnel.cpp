@@ -4,6 +4,7 @@
 #include "pairing.hpp"
 #include "config.hpp"
 #include "timestamp.hpp"
+#include "iam.h"
 
 #include <3rdparty/cxxopts.hpp>
 #include <3rdparty/nlohmann/json.hpp>
@@ -244,6 +245,15 @@ int main(int argc, char** argv)
         ("pair-url", "Pair with a tcptunnel device using an URL", cxxopts::value<std::string>())
         ;
 
+    options.add_options("IAM")
+        ("users", "List all users on selected device.")
+        ("roles", "List roles available on device.")
+        ("add-role", "Add a role to a user on device.", cxxopts::value<std::string>())
+        ("remove-role", "Remove a role from a user on device.", cxxopts::value<std::string>())
+        ("role", "Used in conjunction with --add-role and --remove-role.", cxxopts::value<std::string>())
+        ("delete-user", "Delete a user on device.", cxxopts::value<std::string>())
+        ;
+
     options.add_options("TCP Tunnelling")
         ("list-services", "List available services on the device")
         ("service", "Create a tunnel to this service", cxxopts::value<std::string>())
@@ -296,10 +306,18 @@ int main(int argc, char** argv)
             return 0;
         }
         else if (result.count("list-services") ||
-                 result.count("service"))
+                 result.count("service") ||
+                 result.count("users") ||
+                 result.count("roles") ||
+                 result.count("add-role") ||
+                 result.count("remove-role") ||
+                 result.count("role") ||
+                 result.count("delete-user"))
         {
             auto connection = createConnection(context, result["bookmark"].as<uint32_t>());
             if (!connection) {
+                // TODO(ahs): Investigate why the connection did not open, and print more appropriate error for the user.
+                std::cout << "Could not open connection" << std::endl;
                 return 1;
             }
 
@@ -308,14 +326,40 @@ int main(int argc, char** argv)
                 status = list_services(connection);
             } else if (result.count("service")) {
                 status = tcptunnel(connection, result["service"].as<std::string>(), result["local-port"].as<uint16_t>());
+            } else if (result.count("users")) {
+                status = IAM::list_users(connection);
+            } else if (result.count("roles")) {
+                status = IAM::list_roles(connection);
+            } else if (result.count("add-role")) {
+                if (result.count("role")) {
+                    status = IAM::add_role_to_user(connection, result["add-role"].as<std::string>(), result["role"].as<std::string>());
+                } else {
+                    std::cout
+                    << "You've used the --add-role option without specifying which role to add.\n"
+                    << "Use --role to specify a role that you want to add to this user."
+                    << std::endl;
+                }
+            } else if (result.count("remove-role")) {
+                if (result.count("role")) {
+                    status = IAM::remove_role_from_user(connection, result["remove-role"].as<std::string>(), result["role"].as<std::string>());
+                } else {
+                    std::cout
+                    << "You've used the --remove-role option without specifying which role to remove.\n"
+                    << "Use the --role option to specify a role that you want to remove from this user."
+                    << std::endl;
+                }
+            } else if (result.count("role")) {
+                std::cout
+                << "You've used the --role option without specifying a user.\n"
+                << "Use --add-role to specify a user that you want to add the role to."
+                << "Use --remove-role to specify a user that you want to remove the role from."
+                << std::endl;
+            } else if (result.count("delete-user")) {
+                status = IAM::delete_user(connection, result["delete-user"].as<std::string>());
             }
 
             connection->close()->waitForResult();
-            if (status) {
-                return 0;
-            } else {
-                return 1;
-            }
+            return status ? 0 : 1;
         } else {
             std::cout << options.help() << std::endl;
             return 0;
