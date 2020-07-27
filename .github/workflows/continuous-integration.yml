@@ -38,14 +38,45 @@ jobs:
           name: ${{ runner.os }}-artifact
           path: ${{ github.workspace }}/artifact/
 
-  release-artifacts:
-    name: Release Step
+  release-assets:
+    name: Release Assets
     needs: build
     runs-on: ubuntu-18.04
 
-    # if: github.event_name == 'release'
+    if: github.event_name == 'release'
     steps:
       - uses: actions/download-artifact@v2
         with:
           path: ${{ github.workspace }}/artifacts
-      - run: ls -R ${{ github.workspace }}/artifacts
+      - name: Make asset files
+        run: |
+          zip -r ${{ github.workspace }}/artifacts/linux-asset.zip ${{ github.workspace }}/artifacts/Linux-artifact/*
+          zip -r ${{ github.workspace }}/artifacts/windows-asset.zip ${{ github.workspace }}/artifacts/Windows-artifact/*
+          zip -r ${{ github.workspace }}/artifacts/macos-asset.zip ${{ github.workspace }}/artifacts/macOS-artifact/*
+      - name: Upload Linux asset
+        uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ github.event.release.url }}
+            asset_path: ${{ github.workspace }}/artifacts/linux-asset.zip
+            asset_name: linux-asset.zip
+            asset_content_type: application/zip
+      - name: Upload Windows asset
+        uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ github.event.release.url }}
+            asset_path: ${{ github.workspace }}/artifacts/windows-asset.zip
+            asset_name: windows-asset.zip
+            asset_content_type: application/zip
+      - name: Upload MacOS asset
+        uses: actions/upload-release-asset@v1
+          env:
+            GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          with:
+            upload_url: ${{ github.event.release.url }}
+            asset_path: ${{ github.workspace }}/artifacts/macos-asset.zip
+            asset_name: macos-asset.zip
+            asset_content_type: application/zip
