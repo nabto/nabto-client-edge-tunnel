@@ -58,7 +58,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ github.event.release.url }}
+          upload_url: ${{ github.event.release.upload_url }}
           asset_path: ${{ github.workspace }}/artifacts/linux-asset.zip
           asset_name: linux-asset.zip
           asset_content_type: application/zip
@@ -67,7 +67,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ github.event.release.url }}
+          upload_url: ${{ github.event.release.upload_url }}
           asset_path: ${{ github.workspace }}/artifacts/windows-asset.zip
           asset_name: windows-asset.zip
           asset_content_type: application/zip
@@ -76,7 +76,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
-          upload_url: ${{ github.event.release.url }}
+          upload_url: ${{ github.event.release.upload_url }}
           asset_path: ${{ github.workspace }}/artifacts/macos-asset.zip
           asset_name: macos-asset.zip
           asset_content_type: application/zip
