@@ -35,7 +35,7 @@ jobs:
 
       - uses: actions/upload-artifact@v2
         with:
-          name: ${{ github.runner.os }}-artifact
+          name: ${{ runner.os }}-artifact
           path: ${{ github.workspace }}/artifact/
 
   release-artifacts:
