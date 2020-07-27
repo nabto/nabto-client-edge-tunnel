@@ -50,9 +50,16 @@ jobs:
           path: ${{ github.workspace }}/artifacts
       - name: Make asset files
         run: |
-          zip -r ${{ github.workspace }}/artifacts/linux-asset.zip ${{ github.workspace }}/artifacts/Linux-artifact/*
-          zip -r ${{ github.workspace }}/artifacts/windows-asset.zip ${{ github.workspace }}/artifacts/Windows-artifact/*
-          zip -r ${{ github.workspace }}/artifacts/macos-asset.zip ${{ github.workspace }}/artifacts/macOS-artifact/*
+          cd ${{ github.workspace }}/artifacts
+          pushd Linux-artifact
+          zip -r ${{ github.workspace }}/artifacts/linux-asset.zip ./*
+          popd
+          pushd Windows-artifact
+          zip -r ${{ github.workspace }}/artifacts/windows-asset.zip ./*
+          popd
+          pushd macOS-artifact
+          zip -r ${{ github.workspace }}/artifacts/macos-asset.zip ./*
+          popd
       - name: Upload Linux asset
         uses: actions/upload-release-asset@v1
         env:
