@@ -9,8 +9,12 @@ find_package(Threads)
 include_directories(include .)
 add_subdirectory(nabto_cpp_wrapper)
 
+set(platform_src
+    src/platform_cppstd.cpp)
+
 if(WIN32)
     link_directories(${CMAKE_SOURCE_DIR}/lib/windows)
+    set(platform_src src/platform_win32.cpp)
 elseif(UNIX AND NOT APPLE)
     link_directories(${CMAKE_SOURCE_DIR}/lib/linux)
     set(CMAKE_SKIP_BUILD_RPATH FALSE)
@@ -22,12 +26,13 @@ endif()
 
 set(src
     src/edge_tunnel.cpp
-    src/json_config.cpp
+    src/config.cpp
     src/pairing.cpp
     src/timestamp.cpp
+    src/iam.cpp
 )
 
-add_executable(edge_tunnel_client ${src})
+add_executable(edge_tunnel_client ${platform_src} ${src})
 target_link_libraries(edge_tunnel_client cpp_wrapper ${CMAKE_THREAD_LIBS_INIT})
 
 install(TARGETS edge_tunnel_client RUNTIME DESTINATION .

@@ -1,18 +1,16 @@
 #include "pairing.hpp"
 
-#include "json_config.hpp"
+#include "config.hpp"
 #include "scanner.hpp"
 
 #include <3rdparty/nlohmann/json.hpp>
 #include <iostream>
 #include <sstream>
 
-namespace nabto {
-namespace examples {
-namespace common {
+using string = std::string;
+using json = nlohmann::json;
 
 const static int CONTENT_FORMAT_APPLICATION_CBOR = 60; // rfc 7059
-
 enum class PairingMode {
     NONE,
     BUTTON,
@@ -20,7 +18,13 @@ enum class PairingMode {
     LOCAL
 };
 
-std::string pairingModeAsString(PairingMode mode) {
+// arg Character should be lowercase.
+static bool is_char_case_insensitive(char Subject, char Character) {
+    return (Character >= 'a' && Character <= 'z') &&
+           Subject == Character || Subject == (Character - 32);
+}
+
+static std::string pairingModeAsString(PairingMode mode) {
     if (mode == PairingMode::BUTTON) {
         return "Button";
     } else if (mode == PairingMode::PASSWORD) {
@@ -31,7 +35,7 @@ std::string pairingModeAsString(PairingMode mode) {
     return "unknown";
 }
 
-PairingMode get_pairing_mode(std::shared_ptr<nabto::client::Connection> connection)
+static PairingMode get_pairing_mode(std::shared_ptr<nabto::client::Connection> connection)
 {
 
     std::vector<PairingMode> supportedModes;
@@ -98,7 +102,7 @@ PairingMode get_pairing_mode(std::shared_ptr<nabto::client::Connection> connecti
     return supportedModes[pairingChoice];
 }
 
-bool button_pair(std::shared_ptr<nabto::client::Connection> connection, const std::string& name)
+static bool button_pair(std::shared_ptr<nabto::client::Connection> connection, const std::string& name)
 {
     auto coap = connection->createCoap("POST", "/pairing/button");
     std::cout << "Waiting for the user to press a button on the device." << std::endl;
@@ -116,7 +120,7 @@ bool button_pair(std::shared_ptr<nabto::client::Connection> connection, const st
     return true;
 }
 
-bool local_pair(std::shared_ptr<nabto::client::Connection> connection, const std::string& name)
+static bool local_pair(std::shared_ptr<nabto::client::Connection> connection, const std::string& name)
 {
     nlohmann::json root;
     root["Name"] = name;
@@ -134,7 +138,7 @@ bool local_pair(std::shared_ptr<nabto::client::Connection> connection, const std
     return true;
 }
 
-bool password_pair_password(std::shared_ptr<nabto::client::Connection> connection, const std::string& name, const std::string& password)
+static bool password_pair_password(std::shared_ptr<nabto::client::Connection> connection, const std::string& name, const std::string& password)
 {
     nlohmann::json root;
     root["Password"] = password;
@@ -153,7 +157,7 @@ bool password_pair_password(std::shared_ptr<nabto::client::Connection> connectio
     return true;
 }
 
-bool password_pair(std::shared_ptr<nabto::client::Connection> connection, const std::string& name)
+static bool password_pair(std::shared_ptr<nabto::client::Connection> connection, const std::string& name)
 {
     std::string password;
     std::cout << "enter the password which is used to pair with the device." << std::endl;
@@ -161,15 +165,12 @@ bool password_pair(std::shared_ptr<nabto::client::Connection> connection, const 
     return password_pair_password(connection, name, password);
 }
 
-
-
-
-bool interactive_pair(std::shared_ptr<nabto::client::Context> ctx, const std::string& configFile, const std::string& userName)
+bool interactive_pair(std::shared_ptr<nabto::client::Context> Context, const string& userName)
 {
-    nlohmann::json config;
+    Configuration::DeviceInfo DeviceConfig;
 
     std::cout << "Scanning for local devices for 2 seconds." << std::endl;
-    auto devices = Scanner::scan(ctx, std::chrono::milliseconds(2000));
+    auto devices = nabto::examples::common::Scanner::scan(Context, std::chrono::milliseconds(2000));
     if (devices.size() == 0) {
         std::cout << "Did not find any local devices, is the device on the same local network as the client?" << std::endl;
         return false;
@@ -178,12 +179,14 @@ bool interactive_pair(std::shared_ptr<nabto::client::Context> ctx, const std::st
     std::cout << "Found " << devices.size() << " local devices." << std::endl;
     std::cout << "Choose a device for pairing:" << std::endl;
     std::cout << "[q]: Quit without pairing" << std::endl;
-    for (size_t i = 0; i < devices.size(); i++) {
-        std::string productId;
-        std::string deviceId;
-        std::tie(productId,deviceId) = devices[i];
-        std::cout << "[" << i << "] ProductId: " << productId << " DeviceId: " << deviceId << std::endl;
+
+    for (size_t i = 0; i < devices.size(); ++i) {
+        string ProductID;
+        string DeviceID;
+        std::tie(ProductID, DeviceID) = devices[i];
+        std::cout << "[" << i << "] ProductId: " << ProductID << " DeviceId: " << DeviceID << std::endl;
     }
+
     int deviceChoice = -1;
     {
         char input;
@@ -195,30 +198,35 @@ bool interactive_pair(std::shared_ptr<nabto::client::Context> ctx, const std::st
 
         deviceChoice = input - '0';
     }
-    if (deviceChoice < 0 || deviceChoice >= (int)devices.size()) {
+
+    if (deviceChoice < 0 || deviceChoice >= devices.size()) {
+        // TODO(as): Let the user re-try pairing instead of quitting?
         std::cout << "Invalid choice" << std::endl;
         return false;
     }
-    auto connection = ctx->createConnection();
+
+    auto connection = Context->createConnection();
     {
-        std::string productId;
-        std::string deviceId;
-        std::tie(productId, deviceId) = devices[deviceChoice];
-        connection->setProductId(productId);
-        connection->setDeviceId(deviceId);
-        std::string privateKey = ctx->createPrivateKey();
-        connection->setPrivateKey(privateKey);
+        string ProductID;
+        string DeviceID;
+        std::tie(ProductID, DeviceID) = devices[deviceChoice];
+        connection->setProductId(ProductID);
+        connection->setDeviceId(DeviceID);
+        string PrivateKey = Context->createPrivateKey();
+        connection->setPrivateKey(PrivateKey);
+
         json options;
         options["Remote"] = false;
         connection->setOptions(options.dump());
 
-        config["DeviceId"] = deviceId;
-        config["ProductId"] = productId;
-        config["PrivateKey"] = privateKey;
+        DeviceConfig.DeviceID = DeviceID;
+        DeviceConfig.ProductID = ProductID;
+        DeviceConfig.PrivateKey = PrivateKey;
 
         try {
             connection->connect()->waitForResult();
-        } catch (nabto::client::NabtoException& e) {
+        }
+        catch (nabto::client::NabtoException& e) {
             if (e.status().getErrorCode() == nabto::client::Status::NO_CHANNELS) {
                 auto localStatus = nabto::client::Status(connection->getLocalChannelErrorCode());
                 auto remoteStatus = nabto::client::Status(connection->getRemoteChannelErrorCode());
@@ -231,30 +239,30 @@ bool interactive_pair(std::shared_ptr<nabto::client::Context> ctx, const std::st
             return false;
         }
 
-        std::cout << "Connected to device ProductId: " <<  productId << " DeviceId: " << deviceId << std::endl;
-        std::cout << "Is this the correct fingerprint of the device " << connection->getDeviceFingerprintFullHex() << " [yn]" << std::endl;
-    }
-    {
-        char input;
-        std::cin >> input;
-        if (input == 'q') {
-            std::cout << "Quitting" << std::endl;
-            return false;
-        } else if (input == 'y') {
-
-        } else if (input == 'n') {
-            std::cout << "Rejected device fingerprint, quitting" << std::endl;
-            return false;
-        } else {
-            std::cout << "Invalid choice, quitting" << std::endl;
-            return false;
+        std::cout << "Connected to device ProductId: " <<  ProductID << " DeviceId: " << DeviceID << std::endl;
+        std::cout << "Is this the correct fingerprint of the device " << connection->getDeviceFingerprintFullHex() << " [y/n]" << std::endl;
+        {
+            char input;
+            std::cin >> input;
+            if (!is_char_case_insensitive(input, 'y')) {
+                if (is_char_case_insensitive(input, 'q')) {
+                    std::cout << "Quitting" << std::endl;
+                }
+                else if (is_char_case_insensitive(input, 'n')) {
+                    std::cout << "Rejected device fingerprint, quitting" << std::endl;
+                }
+                else {
+                    std::cout << "Invalid choice, quitting" << std::endl;
+                }
+                return false;
+            }
         }
     }
-    config["DeviceFingerprint"] = connection->getDeviceFingerprintFullHex();
+
+    DeviceConfig.DeviceFingerprint = connection->getDeviceFingerprintFullHex();
     std::cout << "Connected to the device" << std::endl;
 
     PairingMode mode = get_pairing_mode(connection);
-
     if (mode == PairingMode::NONE) {
         return false;
     } if (mode == PairingMode::BUTTON) {
@@ -282,15 +290,14 @@ bool interactive_pair(std::shared_ptr<nabto::client::Context> ctx, const std::st
     }
 
     auto buffer = coap->getResponsePayload();
-    auto j = nlohmann::json::from_cbor(buffer);
-    config["ServerConnectToken"] = j["ServerConnectToken"].get<std::string>();
-
+    DeviceConfig.ServerConnectToken = json::from_cbor(buffer)["ServerConnectToken"].get<std::string>();
     std::cout << "Paired with the device, writing configuration to the configuration file" << std::endl;
 
-    if (!json_config_save(configFile, config)) {
-        std::cerr << "Failed to write config to " << configFile << std::endl;
+    Configuration::AddPairedDeviceToBookmarks(DeviceConfig);
+    if (!Configuration::WriteStateFile()) {
+        std::cerr << "Failed to write config to " << Configuration::GetStateFilePath() << std::endl;
         return false;
-    }
+    };
     return true;
 }
 
@@ -328,52 +335,41 @@ static std::map<std::string, std::string> parseQueryString(const std::string& ur
     return args;
 }
 
-static void printMissingClientConfig(const std::string& filename)
-{
-    std::cerr
-        << "The example is missing the client configuration file (" << filename << ")." << std::endl
-        << "The client configuration file is a json file which contains" << std::endl
-        << "a server key which the client uses when it needs to make a" << std::endl
-        << "remote connection." << std::endl
-        << "{" << std::endl
-        << "  \"ServerKey\": \"<server key from the console>\"," << std::endl
-        << "  \"ServerUrl\": \"<optional server url if it is not the default one\"" << std::endl
-        << "}" <<std::endl;
-}
-
-bool link_pair(std::shared_ptr<nabto::client::Context> ctx, const std::string& configFile, const std::string& stateFile, const std::string& userName, const std::string& remotePairUrl)
+bool link_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userName, const string& remotePairUrl)
 {
     std::map<std::string, std::string> args = parseQueryString(remotePairUrl);
-    nlohmann::json config;
-    nlohmann::json state;
-    if (!json_config_load(configFile, config)) {
-        printMissingClientConfig(configFile);
+    Configuration::DeviceInfo Device;
+    Configuration::ConfigInfo Config;
+    if (!Configuration::GetConfigInfo(&Config)) {
+        // TODO(as): print error to the user here.
         return false;
     }
-    std::string productId = args["p"];
-    std::string deviceId = args["d"];
-    std::string deviceFingerprint = args["fp"];
-    std::string pairingPassword = args["pwd"];
-    std::string serverConnectToken = args["sct"];
+
+    string productId = args["p"];
+    string deviceId = args["d"];
+    string deviceFingerprint = args["fp"];
+    string pairingPassword = args["pwd"];
+    string serverConnectToken = args["sct"];
 
     auto connection = ctx->createConnection();
     connection->setProductId(productId);
     connection->setDeviceId(deviceId);
-    std::string privateKey = ctx->createPrivateKey();
+    string privateKey = ctx->createPrivateKey();
     connection->setPrivateKey(privateKey);
-    try {
-        std::string url = config["ServerUrl"].get<std::string>();
-        connection->setServerUrl(url);
-    } catch (...) {
-        //Ignore missing server key, api should assign one
+
+    if (Config.ServerUrl) {
+        connection->setServerUrl(string(Config.ServerUrl));
     }
-    connection->setServerKey(config["ServerKey"].get<std::string>());
+    else {
+        // TODO(as): No server url found.
+    }
+    connection->setServerKey(string(Config.ServerKey));
     connection->setServerConnectToken(serverConnectToken);
     json options;
 
-    state["DeviceId"] = deviceId;
-    state["ProductId"] = productId;
-    state["PrivateKey"] = privateKey;
+    Device.DeviceID = deviceId;
+    Device.ProductID = productId;
+    Device.PrivateKey = privateKey;
 
     try {
         connection->connect()->waitForResult();
@@ -401,7 +397,7 @@ bool link_pair(std::shared_ptr<nabto::client::Context> ctx, const std::string& c
         return false;
     }
 
-    state["DeviceFingerprint"] = connection->getDeviceFingerprintFullHex();
+    Device.DeviceFingerprint = connection->getDeviceFingerprintFullHex();
 
     auto coap = connection->createCoap("GET", "/pairing/client-settings");
     coap->execute()->waitForResult();
@@ -413,18 +409,16 @@ bool link_pair(std::shared_ptr<nabto::client::Context> ctx, const std::string& c
         return false;
     }
 
-    auto buffer = coap->getResponsePayload();
-    auto j = nlohmann::json::from_cbor(buffer);
-    state["ServerConnectToken"] = j["ServerConnectToken"].get<std::string>();
+    auto buffer =coap->getResponsePayload();
+    auto j = json::from_cbor(buffer);
+    Device.ServerConnectToken = j["ServerConnectToken"].get<string>();
 
-    if (!json_config_save(stateFile, state)) {
-        std::cerr << "Failed to write state to " << stateFile << std::endl;
+    Configuration::AddPairedDeviceToBookmarks(Device);
+    if (!Configuration::WriteStateFile()) {
+        std::cerr << "Failed to write state to " << Configuration::GetStateFilePath() << std::endl;
         return false;
     }
-
-    std::cout << "Paired with the device and wrote state to file " << stateFile << std::endl;
+    std::cout << "Paired with the device and wrote state to file " << Configuration::GetStateFilePath() << std::endl;
 
     return true;
 }
-
-} } } // namespace
