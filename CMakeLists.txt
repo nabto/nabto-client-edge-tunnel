@@ -22,7 +22,6 @@ endif()
 
 set(src
     src/edge_tunnel.cpp
-    src/platform.cpp
     src/config.cpp
     src/pairing.cpp
     src/timestamp.cpp

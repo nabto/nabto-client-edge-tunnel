@@ -236,8 +236,7 @@ int main(int argc, char** argv)
     options.add_options("General")
         ("h,help", "Show help")
         ("version", "Show version")
-        ("c,config", "Configutation File", cxxopts::value<std::string>()->default_value("client.json"))
-        ("s,state", "State File", cxxopts::value<std::string>()->default_value("tcp_tunnel_client_state.json"))
+        ("H,home", "Override the directory in which configuration files are saved to.", cxxopts::value<std::string>())
         ("log-level", "Log level (none|error|info|trace)", cxxopts::value<std::string>()->default_value("error"))
         ("list-bookmarks", "List bookmarked devices")
         ("b,bookmark", "Select a bookmarked device to use with other commands.", cxxopts::value<uint32_t>()->default_value("0"))
@@ -275,7 +274,15 @@ int main(int argc, char** argv)
             return 0;
         }
 
-        Configuration::Initialize(result["config"].as<std::string>(), result["state"].as<std::string>());
+        if (result.count("home"))
+        {
+            Configuration::InitializeWithDirectory(result["home"].as<std::string>());
+        }
+        else
+        {
+            Configuration::Initialize();
+        }
+
         if (result.count("list-bookmarks"))
         {
             Configuration::PrintBookmarks();

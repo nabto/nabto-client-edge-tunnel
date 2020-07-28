@@ -18,7 +18,8 @@ namespace Configuration
         const char* ServerUrl;
     };
 
-    void Initialize(std::string ConfigFilePath, std::string StateFilePath);
+    void InitializeWithDirectory(const std::string &HomePath);
+    void Initialize();
     bool GetConfigInfo(ConfigInfo *Info);
     const char* GetConfigFilePath();
     const char* GetStateFilePath();
