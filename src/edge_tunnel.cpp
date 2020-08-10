@@ -160,7 +160,7 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
 static void get_service(std::shared_ptr<nabto::client::Connection> connection, const std::string& service);
 static void print_service(const nlohmann::json& service);
 
-bool list_services(std::shared_ptr<nabto::client::Connection> connection)
+bool list_services(std::shared_ptr<nabto::client::Connection> connection, uint32_t device)
 {
     auto coap = connection->createCoap("GET", "/tcp-tunnels/services");
     coap->execute()->waitForResult();
@@ -170,6 +170,7 @@ bool list_services(std::shared_ptr<nabto::client::Connection> connection)
         auto cbor = coap->getResponsePayload();
         auto data = json::from_cbor(cbor);
         if (data.is_array()) {
+            std::cout << "Services for device [" << device << "]" << std::endl;
             for (auto s : data) {
                 get_service(connection, s.get<std::string>());
             }
@@ -203,18 +204,18 @@ void print_service(const nlohmann::json& service)
     std::cout << "Service: " << id << ", Type: " << type << ", Host: " << host << ", Port: " << port << std::endl;
 }
 
-bool tcptunnel(std::shared_ptr<nabto::client::Connection> connection, const std::string& service, uint16_t localPort)
+bool tcptunnel(std::shared_ptr<nabto::client::Connection> connection, const std::string& service, uint16_t localPort, uint32_t device)
 {
     std::shared_ptr<nabto::client::TcpTunnel> tunnel;
     try {
         tunnel = connection->createTcpTunnel();
         tunnel->open(service, localPort)->waitForResult();
     } catch (std::exception& e) {
-        std::cout << "Could not open a tunnel to the service " << service << " error: " << e.what() << std::endl;
+        std::cout << "Could not open a tunnel on device [" << device << "] to the service " << service << " error: " << e.what() << std::endl;
         return false;
     }
 
-    std::cout << "Opened a TCP Tunnel to the service " << service << " Listening on the local port " << tunnel->getLocalPort() << std::endl;
+    std::cout << "Opened a TCP Tunnel on device [" << device << "] to the service " << service << " Listening on the local port " << tunnel->getLocalPort() << std::endl;
 
 
     // wait for ctrl c
@@ -321,7 +322,8 @@ int main(int argc, char** argv)
                  result.count("role") ||
                  result.count("delete-user"))
         {
-            auto connection = createConnection(context, result["bookmark"].as<uint32_t>());
+            uint32_t device = result["bookmark"].as<uint32_t>();
+            auto connection = createConnection(context, device);
             if (!connection) {
                 // TODO(ahs): Investigate why the connection did not open, and print more appropriate error for the user.
                 std::cout << "Could not open connection" << std::endl;
@@ -330,16 +332,16 @@ int main(int argc, char** argv)
 
             bool status = false;
             if (result.count("list-services")) {
-                status = list_services(connection);
+                status = list_services(connection, device);
             } else if (result.count("service")) {
-                status = tcptunnel(connection, result["service"].as<std::string>(), result["local-port"].as<uint16_t>());
+                status = tcptunnel(connection, result["service"].as<std::string>(), result["local-port"].as<uint16_t>(), device);
             } else if (result.count("users")) {
-                status = IAM::list_users(connection);
+                status = IAM::list_users(connection, device);
             } else if (result.count("roles")) {
-                status = IAM::list_roles(connection);
+                status = IAM::list_roles(connection, device);
             } else if (result.count("add-role")) {
                 if (result.count("role")) {
-                    status = IAM::add_role_to_user(connection, result["add-role"].as<std::string>(), result["role"].as<std::string>());
+                    status = IAM::add_role_to_user(connection, result["add-role"].as<std::string>(), result["role"].as<std::string>(), device);
                 } else {
                     std::cout
                     << "You've used the --add-role option without specifying which role to add.\n"
@@ -348,7 +350,7 @@ int main(int argc, char** argv)
                 }
             } else if (result.count("remove-role")) {
                 if (result.count("role")) {
-                    status = IAM::remove_role_from_user(connection, result["remove-role"].as<std::string>(), result["role"].as<std::string>());
+                    status = IAM::remove_role_from_user(connection, result["remove-role"].as<std::string>(), result["role"].as<std::string>(), device);
                 } else {
                     std::cout
                     << "You've used the --remove-role option without specifying which role to remove.\n"
@@ -362,7 +364,7 @@ int main(int argc, char** argv)
                 << "Use --remove-role to specify a user that you want to remove the role from."
                 << std::endl;
             } else if (result.count("delete-user")) {
-                status = IAM::delete_user(connection, result["delete-user"].as<std::string>());
+                status = IAM::delete_user(connection, result["delete-user"].as<std::string>(), device);
             }
 
             connection->close()->waitForResult();
