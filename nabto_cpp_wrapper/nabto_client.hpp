@@ -228,6 +228,8 @@ class Connection {
     virtual void addEventsListener(std::shared_ptr<ConnectionEventsCallback> callback) = 0;
     virtual void removeEventsListener(std::shared_ptr<ConnectionEventsCallback> callback) = 0;
 
+    virtual bool passwordAuthenticate(const std::string& password) = 0;
+
     virtual std::shared_ptr<FutureVoid> connect() = 0;
     virtual std::shared_ptr<Stream> createStream() = 0;
     virtual std::shared_ptr<FutureVoid> close() = 0;

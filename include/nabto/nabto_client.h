@@ -125,6 +125,7 @@ NABTO_CLIENT_DECL_PREFIX extern const NabtoClientError NABTO_CLIENT_EC_NOT_ATTAC
 NABTO_CLIENT_DECL_PREFIX extern const NabtoClientError NABTO_CLIENT_EC_TOKEN_REJECTED;
 NABTO_CLIENT_DECL_PREFIX extern const NabtoClientError NABTO_CLIENT_EC_COULD_BLOCK;
 NABTO_CLIENT_DECL_PREFIX extern const NabtoClientError NABTO_CLIENT_EC_UNAUTHORIZED;
+NABTO_CLIENT_DECL_PREFIX extern const NabtoClientError NABTO_CLIENT_EC_TOO_MANY_REQUESTS;
 
 
 
@@ -366,7 +367,7 @@ nabto_client_connection_set_options(connection, options.c_str());
  * establishment is started.
  *
  * @return NABTO_CLIENT_EC_OK  iff the json document is parsed and understood.
- *         NABTO_CLIENT_EC_INVALID_PARAMETER if the json is not understood. See error log for more details.
+ *         NABTO_CLIENT_EC_INVALID_ARGUMENT if the json is not understood. See error log for more details.
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_connection_set_options(NabtoClientConnection* connection, const char* json);

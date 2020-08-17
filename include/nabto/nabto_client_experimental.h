@@ -84,6 +84,41 @@ nabto_client_mdns_result_get_product_id(NabtoClientMdnsResult* result, const cha
 /* nabto_client_tcp_tunnel_listen_mode(NabtoClientTcpTunnel* tunnel, */
 /*                                     enum NabtoClientTcpTunnelListenMode listenMode); */
 
+
+/**
+ * Password Authentication
+ *
+ * Password authenticate the client and the device. The password
+ * authentication is bidirectional and based on PAKE, such that both
+ * the client and the device learns that the other end knows the
+ * password, without revealing the password to the other end.
+ *
+ * A specific use case for the password authentication is to prove the
+ * identity of a device which identity is not already known, e.g. in a
+ * pairing scenario.
+ */
+
+/**
+ * Password authenticate, do a password authentication exchange with a
+ * device.
+ *
+ * @param connection  The connection
+ * @param username    The username
+ * @param password    The password
+ * @param future      The future with the result
+ *
+ * The future resolves with the status of the authentication.
+ *
+ * NABTO_CLIENT_EC_OK iff the authentication went well.
+ * NABTO_CLIENT_EC_UNAUTHORIZED iff the username or password is invalid
+ * NABTO_CLIENT_EC_NOT_FOUND if the password authentication feature is not available on the device.
+ * NABTO_CLIENT_EC_NOT_CONNECTED if the connectio is not connected.
+ * NABTO_CLIENT_EC_OPERATION_IN_PROGRESS if a password authentication request is already in progress on the connection.
+ * NABTO_CLIENT_EC_TOO_MANY_REQUESTS if too many password attempts has been made.
+ */
+NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
+nabto_client_connection_password_authenticate(NabtoClientConnection* connection, const char* username, const char* password, NabtoClientFuture* future);
+
 #ifdef __cplusplus
 } // extern C
 #endif
