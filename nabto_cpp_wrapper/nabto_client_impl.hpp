@@ -499,7 +499,6 @@ class TcpTunnelImpl : public TcpTunnel {
     NabtoClient* context_;
 };
 
-
 class ConnectionImpl;
 
 class ConnectionEventsListenerImpl {
@@ -752,6 +751,20 @@ class ConnectionImpl : public Connection, public std::enable_shared_from_this<Co
     std::shared_ptr<Coap> createCoap(const std::string& method, const std::string& path)
     {
         return CoapImpl::create(context_, connection_, method, path);
+    }
+
+    bool passwordAuthenticate(const std::string& password)
+    {
+        bool result = true;
+        NabtoClientFuture *future = nabto_client_future_new(context_);
+        nabto_client_connection_password_authenticate(connection_, "", password.c_str(), future);
+        nabto_client_future_wait(future);
+        if (nabto_client_future_ready(future) != NABTO_CLIENT_EC_OK)
+        {
+            result = false;
+        }
+        nabto_client_future_free(future);
+        return result;
     }
 
     std::shared_ptr<TcpTunnel> createTcpTunnel()

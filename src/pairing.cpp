@@ -141,8 +141,12 @@ static bool local_pair(std::shared_ptr<nabto::client::Connection> connection, co
 static bool password_pair_password(std::shared_ptr<nabto::client::Connection> connection, const std::string& name, const std::string& password)
 {
     nlohmann::json root;
-    root["Password"] = password;
     root["Name"] = name;
+
+    if (!connection->passwordAuthenticate(password)) {
+        std::cout << "Could not authenticate with device. Ensure you typed the correct password." << std::endl;
+        return false;
+    }
 
     auto coap = connection->createCoap("POST", "/pairing/password");
     coap->setRequestPayload(CONTENT_FORMAT_APPLICATION_CBOR, nlohmann::json::to_cbor(root));
