@@ -351,7 +351,6 @@ bool link_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userNa
 
     string productId = args["p"];
     string deviceId = args["d"];
-    string deviceFingerprint = args["fp"];
     string pairingPassword = args["pwd"];
     string serverConnectToken = args["sct"];
 
@@ -391,11 +390,6 @@ bool link_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userNa
     }
 
     std::cout << "Connected to device ProductId: " <<  productId << " DeviceId: " << deviceId << std::endl;
-
-    if (deviceFingerprint != connection->getDeviceFingerprintFullHex()) {
-        std::cout << "device fingerprint does not match" << std::endl;
-        return false;
-    }
 
     if (!password_pair_password(connection, userName, pairingPassword)) {
         return false;
