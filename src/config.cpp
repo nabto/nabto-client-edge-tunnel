@@ -1,5 +1,7 @@
 #include "config.hpp"
 
+#include <nabto_client.hpp>
+
 #include <3rdparty/nlohmann/json.hpp>
 #include <vector>
 #include <fstream>
@@ -7,6 +9,7 @@
 #include <iostream>
 #include <iomanip>
 #include <algorithm>
+#include <memory>
 
 using json = nlohmann::json;
 using string = std::string;
@@ -23,12 +26,13 @@ namespace Configuration
 
     static const char *ClientFileName = "config/client.json";
     static const char *StateFileName = "config/tcp_tunnel_client_state.json";
-    static const char *KeysFileName = "keys/client.key";
+    static const char *KeyFileName = "keys/client.key";
 
     static struct
     {
         string ConfigFilePath;
         string StateFilePath;
+        string KeyFilePath;
         std::vector<DeviceInfo> Bookmarks;
 
         bool HasLoadedConfigFile;
@@ -47,7 +51,6 @@ namespace Configuration
         j = json({
             {"DeviceFingerprint", d.DeviceFingerprint},
             {"DeviceId", d.DeviceID},
-            {"PrivateKey", d.PrivateKey},
             {"ProductId", d.ProductID},
             {"ServerConnectToken", d.ServerConnectToken}
         });
@@ -57,7 +60,6 @@ namespace Configuration
     {
         j.at("DeviceFingerprint").get_to(d.DeviceFingerprint);
         j.at("DeviceId").get_to(d.DeviceID);
-        j.at("PrivateKey").get_to(d.PrivateKey);
         j.at("ProductId").get_to(d.ProductID);
         j.at("ServerConnectToken").get_to(d.ServerConnectToken);
     }
@@ -88,49 +90,41 @@ namespace Configuration
         return Status;
     }
 
-    void FreeFileMemory(FileContents *File)
+    bool ReadEntireFileZeroTerminated(const string& Filename, string& Out)
     {
-        if (File->Buffer) {
-            delete[] File->Buffer;
-            File->Buffer = nullptr;
-        }
-    }
-
-    FileContents ReadEntireFileZeroTerminated(const string& Filename)
-    {
-        FileContents Result = {};
-
+        bool Success = false;
         std::ifstream InputStream(Filename);
         if (InputStream) {
-            bool Success = true;
-            InputStream.seekg(0, std::ios::end);
-            Result.Size = InputStream.tellg();
-            InputStream.seekg(0, std::ios::beg);
-            Result.Buffer = new (std::nothrow) char[Result.Size + 1]();
 
-            if (Result.Buffer) {
-                InputStream.read(Result.Buffer, Result.Size);
-                if (!InputStream && !InputStream.eof()) {
-                    Success = false;
-                    std::cout << "Could not read input stream for file " << Filename << std::endl;
-                }
-            } else {
-                std::cout << "Could not allocate memory for loading file " << Filename << std::endl;
+            InputStream.seekg(0, std::ios::end);
+            size_t size = InputStream.tellg();
+            InputStream.seekg(0, std::ios::beg);
+            std::vector<char> Buffer(size);
+
+            InputStream.read(Buffer.data(), Buffer.size());
+            if (!InputStream && !InputStream.eof()) {
                 Success = false;
+                std::cout << "Could not read input stream for file " << Filename << std::endl;
+            } else {
+                Success = true;
             }
 
             InputStream.close();
 
-            if (!Success) {
-                FreeFileMemory(&Result);
-                Result.Size = 0;
-                Result.Buffer = nullptr;
+            if (Success) {
+                Out = string(Buffer.data(), Buffer.size());
             }
         } else {
             std::cout << "Could not open input stream for file " << Filename << std::endl;
         }
 
-        return Result;
+        return Success;
+    }
+
+    bool FileExists(const string& Filename)
+    {
+        std::ifstream f(Filename.c_str());
+        return f.good();
     }
 
     void CommonInit()
@@ -184,16 +178,20 @@ namespace Configuration
 
         Configuration.ConfigFilePath.assign(NormalizedHomePath);
         Configuration.StateFilePath.assign(NormalizedHomePath);
+        Configuration.KeyFilePath.assign(NormalizedHomePath);
+
         char LastCharacter = NormalizedHomePath.back();
         if (LastCharacter != '/')
         {
             Configuration.ConfigFilePath.append("/");
             Configuration.StateFilePath.append("/");
+            Configuration.KeyFilePath.append("/");
         }
 
         Configuration.ConfigFilePath.append(ClientFileName);
         Configuration.StateFilePath.append(StateFileName);
-        
+        Configuration.KeyFilePath.append(KeyFileName);
+
         CommonInit();
     }
 
@@ -208,6 +206,10 @@ namespace Configuration
         Configuration.StateFilePath.assign(HomePath);
         Configuration.StateFilePath.append(NabtoFolder);
         Configuration.StateFilePath.append(StateFileName);
+
+        Configuration.KeyFilePath.assign(HomePath);
+        Configuration.KeyFilePath.append(NabtoFolder);
+        Configuration.KeyFilePath.append(KeyFileName);
 
         CommonInit();
     }
@@ -224,14 +226,12 @@ namespace Configuration
             return true;
         }
 
-        FileContents ConfigFile = ReadEntireFileZeroTerminated(Configuration.ConfigFilePath);
-
-        if (!ConfigFile.Buffer) {
+        std::string config;
+        if (!ReadEntireFileZeroTerminated(Configuration.ConfigFilePath, config)) {
             return false;
         }
 
-        json Contents = json::parse(ConfigFile.Buffer);
-        FreeFileMemory(&ConfigFile);
+        json Contents = json::parse(config);
 
         if (Contents.find("ServerUrl") != Contents.end()) {
             Configuration.ServerUrl = Contents["ServerUrl"].get<string>();
@@ -291,6 +291,23 @@ namespace Configuration
             }
         }
         Configuration.Bookmarks.push_back(Info);
+    }
+
+    bool CreatePrivateKeyFile(std::shared_ptr<nabto::client::Context> Context)
+    {
+        std::string PrivateKey = Context->createPrivateKey();
+        return WriteStringToFile(PrivateKey, Configuration.KeyFilePath);
+    }
+
+    bool GetPrivateKey(std::shared_ptr<nabto::client::Context> Context, string& Out)
+    {
+        if (!FileExists(Configuration.KeyFilePath)) {
+            if (!CreatePrivateKeyFile(Context)) {
+                std::cerr << "The private key file " << Configuration.KeyFilePath << " does not exists and could not be generated. " << std::endl;
+                return false;
+            }
+        }
+        return ReadEntireFileZeroTerminated(Configuration.KeyFilePath, Out);
     }
 
     void PrintBookmarks()

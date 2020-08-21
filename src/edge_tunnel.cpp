@@ -115,6 +115,14 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
     auto connection = context->createConnection();
     connection->setProductId(Device->ProductID);
     connection->setDeviceId(Device->DeviceID);
+
+    std::string privateKey;
+    if(!Configuration::GetPrivateKey(context, privateKey)) {
+        return nullptr;
+    }
+    connection->setPrivateKey(privateKey);
+
+
     if (Config.ServerUrl) {
         connection->setServerUrl(Config.ServerUrl);
     }
@@ -124,7 +132,7 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
     }
     connection->setServerKey(Config.ServerKey);
     connection->setServerConnectToken(Device->ServerConnectToken);
-    connection->setPrivateKey(Device->PrivateKey);
+
     try {
         connection->connect()->waitForResult();
     } catch (nabto::client::NabtoException& e) {
@@ -246,7 +254,8 @@ int main(int argc, char** argv)
     options.add_options("Pairing")
         ("pair", "Pair the client with a tcptunnel device interactively")
         ("pair-url", "Pair with a tcptunnel device using an URL", cxxopts::value<std::string>())
-        ("pair-string", "Pair with a tcp tunnel device using a pairing string", cxxopts::value<std::string>());
+        ("pair-string", "Pair with a tcp tunnel device using a pairing string", cxxopts::value<std::string>())
+        ("pair-direct", "Pair with a tcp tunnel device directly using its ip or hostname", cxxopts::value<std::string>())
         ;
 
     options.add_options("IAM")
@@ -323,6 +332,13 @@ int main(int argc, char** argv)
             }
             return 0;
         }
+        else if (result.count("pair-direct")) {
+            if (!direct_pair(context, userName, result["pair-direct"].as<std::string>())) {
+                return 1;
+            }
+            return 0;
+        }
+
         else if (result.count("list-services") ||
                  result.count("service") ||
                  result.count("users") ||
@@ -383,8 +399,8 @@ int main(int argc, char** argv)
             std::cout << options.help() << std::endl;
             return 0;
         }
-    } catch (...) {
-        std::cerr << "Invalid Option" << std::endl;
+    } catch (std::exception& e) {
+        std::cerr << "Invalid Option " << e.what() << std::endl;
         std::cout << options.help() << std::endl;
         return 1;
     }

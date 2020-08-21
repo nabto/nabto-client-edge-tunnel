@@ -216,7 +216,11 @@ bool interactive_pair(std::shared_ptr<nabto::client::Context> Context, const str
         std::tie(ProductID, DeviceID) = devices[deviceChoice];
         connection->setProductId(ProductID);
         connection->setDeviceId(DeviceID);
-        string PrivateKey = Context->createPrivateKey();
+
+        string PrivateKey;
+        if (!Configuration::GetPrivateKey(Context, PrivateKey)) {
+            return false;
+        }
         connection->setPrivateKey(PrivateKey);
 
         json options;
@@ -225,7 +229,6 @@ bool interactive_pair(std::shared_ptr<nabto::client::Context> Context, const str
 
         DeviceConfig.DeviceID = DeviceID;
         DeviceConfig.ProductID = ProductID;
-        DeviceConfig.PrivateKey = PrivateKey;
 
         try {
             connection->connect()->waitForResult();
@@ -390,7 +393,12 @@ bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userN
     auto connection = ctx->createConnection();
     connection->setProductId(productId);
     connection->setDeviceId(deviceId);
-    string privateKey = ctx->createPrivateKey();
+    string privateKey;
+
+    if(!Configuration::GetPrivateKey(ctx, privateKey)) {
+        return false;
+    }
+
     connection->setPrivateKey(privateKey);
 
     if (Config.ServerUrl) {
@@ -405,7 +413,6 @@ bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userN
 
     Device.DeviceID = deviceId;
     Device.ProductID = productId;
-    Device.PrivateKey = privateKey;
 
     try {
         connection->connect()->waitForResult();
@@ -452,4 +459,10 @@ bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userN
     std::cout << "Paired with the device and wrote state to file " << Configuration::GetStateFilePath() << std::endl;
 
     return true;
+}
+
+
+bool direct_pair(std::shared_ptr<nabto::client::Context> Context, const std::string& UserName, const std::string& )
+{
+    return false;
 }

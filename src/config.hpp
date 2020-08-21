@@ -1,5 +1,13 @@
 #pragma once
 #include <string>
+#include <memory>
+
+namespace nabto {
+namespace client {
+
+class Context;
+
+} }
 
 namespace Configuration
 {
@@ -7,7 +15,6 @@ namespace Configuration
     {
         std::string DeviceID;
         std::string ProductID;
-        std::string PrivateKey;
         std::string DeviceFingerprint;
         std::string ServerConnectToken;
     };
@@ -26,5 +33,6 @@ namespace Configuration
     bool WriteStateFile();
     DeviceInfo *GetPairedDevice(int Index);
     void AddPairedDeviceToBookmarks(DeviceInfo Info);
+    bool GetPrivateKey(std::shared_ptr<nabto::client::Context> Context, std::string& PrivateKey);
     void PrintBookmarks();
 }
