@@ -339,20 +339,53 @@ static std::map<std::string, std::string> parseQueryString(const std::string& ur
     return args;
 }
 
+
+static std::map<std::string, std::string> parseStringArgs(const std::string pairingString)
+{
+    // k1=v1,k2=v2
+    std::map<std::string, std::string> args;
+    auto pairs = split(pairingString, ',');
+
+    for (auto p : pairs) {
+        auto kv = split(p, '=');
+        if (kv.size() >= 2) {
+            args[kv[0]] = kv[1];
+        }
+    }
+
+    return args;
+}
+
+bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userName, const string& productId, const string& deviceId, const string& password, const string& sct);
+
 bool link_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userName, const string& remotePairUrl)
 {
     std::map<std::string, std::string> args = parseQueryString(remotePairUrl);
+    string productId = args["p"];
+    string deviceId = args["d"];
+    string pairingPassword = args["pwd"];
+    string serverConnectToken = args["sct"];
+    return param_pair(ctx, userName, productId, deviceId, pairingPassword, serverConnectToken);
+}
+
+bool string_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userName, const string& pairingString)
+{
+    std::map<std::string, std::string> args = parseStringArgs(pairingString);
+    string productId = args["p"];
+    string deviceId = args["d"];
+    string pairingPassword = args["pwd"];
+    string serverConnectToken = args["sct"];
+    return param_pair(ctx, userName, productId, deviceId, pairingPassword, serverConnectToken);
+}
+
+bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userName, const string& productId, const string& deviceId, const string& pairingPassword, const string& serverConnectToken)
+{
     Configuration::DeviceInfo Device;
     Configuration::ConfigInfo Config;
     if (!Configuration::GetConfigInfo(&Config)) {
         // TODO(as): print error to the user here.
         return false;
     }
-
-    string productId = args["p"];
-    string deviceId = args["d"];
-    string pairingPassword = args["pwd"];
-    string serverConnectToken = args["sct"];
 
     auto connection = ctx->createConnection();
     connection->setProductId(productId);

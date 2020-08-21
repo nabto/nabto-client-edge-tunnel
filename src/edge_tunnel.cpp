@@ -241,8 +241,12 @@ int main(int argc, char** argv)
         ("log-level", "Log level (none|error|info|trace)", cxxopts::value<std::string>()->default_value("error"))
         ("list-bookmarks", "List bookmarked devices")
         ("b,bookmark", "Select a bookmarked device to use with other commands.", cxxopts::value<uint32_t>()->default_value("0"))
+        ;
+
+    options.add_options("Pairing")
         ("pair", "Pair the client with a tcptunnel device interactively")
         ("pair-url", "Pair with a tcptunnel device using an URL", cxxopts::value<std::string>())
+        ("pair-string", "Pair with a tcp tunnel device using a pairing string", cxxopts::value<std::string>());
         ;
 
     options.add_options("IAM")
@@ -309,6 +313,12 @@ int main(int argc, char** argv)
         }
         else if (result.count("pair-url")) {
             if (!link_pair(context, userName, result["pair-url"].as<std::string>())) {
+                return 1;
+            }
+            return 0;
+        }
+        else if (result.count("pair-string")) {
+            if (!string_pair(context, userName, result["pair-string"].as<std::string>())) {
                 return 1;
             }
             return 0;
