@@ -54,6 +54,9 @@ namespace Configuration
             {"ProductId", d.ProductID},
             {"ServerConnectToken", d.ServerConnectToken}
         });
+        if (!d.DirectCandidate.empty()) {
+            j["DirectCandidate"] = d.DirectCandidate;
+        }
     }
 
     void from_json(const json& j, DeviceInfo& d)
@@ -62,6 +65,11 @@ namespace Configuration
         j.at("DeviceId").get_to(d.DeviceID);
         j.at("ProductId").get_to(d.ProductID);
         j.at("ServerConnectToken").get_to(d.ServerConnectToken);
+        try {
+            j.at("DirectCandidate").get_to(d.DirectCandidate);
+        } catch (const std::exception& e) {
+            // no direct candidate, fine
+        }
     }
 
     bool WriteStringToFile(const string& String, const string& Filename)

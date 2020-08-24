@@ -18,6 +18,12 @@ enum class PairingMode {
     LOCAL
 };
 
+
+static bool get_client_settings(std::shared_ptr<nabto::client::Connection> connection, Configuration::DeviceInfo& Device);
+static bool write_config(Configuration::DeviceInfo& Device);
+static bool local_pair_and_write_config(std::shared_ptr<nabto::client::Connection> connection, Configuration::DeviceInfo& Device, const std::string& UserName);
+static bool password_pair_and_write_config(std::shared_ptr<nabto::client::Connection> connection, Configuration::DeviceInfo& Device, const std::string& UserName, const std::string& pairingPassword);
+
 // arg Character should be lowercase.
 static bool is_char_case_insensitive(char Subject, char Character) {
     return (Character >= 'a' && Character <= 'z') &&
@@ -431,10 +437,90 @@ bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userN
 
     std::cout << "Connected to device ProductId: " <<  productId << " DeviceId: " << deviceId << std::endl;
 
-    if (!password_pair_password(connection, userName, pairingPassword)) {
+    if (!pairingPassword.empty()) {
+        return password_pair_and_write_config(connection, Device, userName, pairingPassword);
+    } else {
+        return local_pair_and_write_config(connection, Device, userName);
+    }
+}
+
+
+bool direct_pair(std::shared_ptr<nabto::client::Context> Context, const std::string& UserName, const std::string& host, const std::string& pairingPassword)
+{
+    auto connection = Context->createConnection();
+    string privateKey;
+
+    if(!Configuration::GetPrivateKey(Context, privateKey)) {
         return false;
     }
 
+    connection->setPrivateKey(privateKey);
+    connection->enableDirectCandidates();
+    connection->addDirectCandidate(host, 5592);
+    connection->endOfDirectCandidates();
+
+    json options;
+    options["Local"] = false;
+    options["Remote"] = false;
+
+    std::stringstream o;
+    o << options;
+    connection->setOptions(o.str());
+
+    try {
+        connection->connect()->waitForResult();
+    } catch (nabto::client::NabtoException& e) {
+        if (e.status().getErrorCode() == nabto::client::Status::NO_CHANNELS) {
+            auto localStatus = nabto::client::Status(connection->getLocalChannelErrorCode());
+            auto remoteStatus = nabto::client::Status(connection->getRemoteChannelErrorCode());
+            std::cerr << "Not Connected." << std::endl;
+            std::cerr << " The Local status is: " << localStatus.getDescription() << std::endl;
+            std::cerr << " The Remote status is: " << remoteStatus.getDescription() << std::endl;
+        } else {
+            std::cerr << "Connect failed " << e.what() << std::endl;
+        }
+        return false;
+    }
+
+    // We have a connection to a device. we do not know the product id, device id or server connect token.
+    Configuration::DeviceInfo Device;
+    Device.DirectCandidate = host;
+
+    if (!pairingPassword.empty()) {
+        return password_pair_and_write_config(connection, Device, UserName, pairingPassword);
+    } else {
+        return local_pair_and_write_config(connection, Device, UserName);
+    }
+}
+
+bool password_pair_and_write_config(std::shared_ptr<nabto::client::Connection> connection, Configuration::DeviceInfo& Device, const std::string& UserName, const std::string& pairingPassword)
+{
+    if (!password_pair_password(connection, UserName, pairingPassword)) {
+        return false;
+    }
+
+    if (!get_client_settings(connection, Device)) {
+        return false;
+    }
+    return write_config(Device);
+}
+
+bool local_pair_and_write_config(std::shared_ptr<nabto::client::Connection> connection, Configuration::DeviceInfo& Device, const std::string& UserName)
+{
+    if(!local_pair(connection, UserName)) {
+        return false;
+    }
+
+    if (!get_client_settings(connection, Device)) {
+        return false;
+    }
+
+    return write_config(Device);
+}
+
+
+bool get_client_settings(std::shared_ptr<nabto::client::Connection> connection, Configuration::DeviceInfo& Device)
+{
     Device.DeviceFingerprint = connection->getDeviceFingerprintFullHex();
 
     auto coap = connection->createCoap("GET", "/pairing/client-settings");
@@ -450,19 +536,22 @@ bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userN
     auto buffer =coap->getResponsePayload();
     auto j = json::from_cbor(buffer);
     Device.ServerConnectToken = j["ServerConnectToken"].get<string>();
+    if (Device.ProductID.empty()) {
+        Device.ProductID = j["ProductId"].get<string>();
+    }
+    if (Device.DeviceID.empty()) {
+        Device.DeviceID = j["DeviceId"].get<std::string>();
+    }
+    return true;
+}
 
+bool write_config(Configuration::DeviceInfo& Device)
+{
     Configuration::AddPairedDeviceToBookmarks(Device);
     if (!Configuration::WriteStateFile()) {
         std::cerr << "Failed to write state to " << Configuration::GetStateFilePath() << std::endl;
         return false;
     }
     std::cout << "Paired with the device and wrote state to file " << Configuration::GetStateFilePath() << std::endl;
-
     return true;
-}
-
-
-bool direct_pair(std::shared_ptr<nabto::client::Context> Context, const std::string& UserName, const std::string& )
-{
-    return false;
 }

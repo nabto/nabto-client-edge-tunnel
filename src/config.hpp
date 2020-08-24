@@ -17,6 +17,7 @@ namespace Configuration
         std::string ProductID;
         std::string DeviceFingerprint;
         std::string ServerConnectToken;
+        std::string DirectCandidate;
     };
 
     struct ConfigInfo

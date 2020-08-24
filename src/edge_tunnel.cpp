@@ -116,6 +116,12 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
     connection->setProductId(Device->ProductID);
     connection->setDeviceId(Device->DeviceID);
 
+    if (!Device->DirectCandidate.empty()) {
+        connection->enableDirectCandidates();
+        connection->addDirectCandidate(Device->DirectCandidate, 5592);
+        connection->endOfDirectCandidates();
+    }
+
     std::string privateKey;
     if(!Configuration::GetPrivateKey(context, privateKey)) {
         return nullptr;
@@ -333,7 +339,7 @@ int main(int argc, char** argv)
             return 0;
         }
         else if (result.count("pair-direct")) {
-            if (!direct_pair(context, userName, result["pair-direct"].as<std::string>())) {
+            if (!direct_pair(context, userName, result["pair-direct"].as<std::string>(), "")) {
                 return 1;
             }
             return 0;
