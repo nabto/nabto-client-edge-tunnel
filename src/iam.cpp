@@ -6,7 +6,7 @@
 #include <3rdparty/nlohmann/json.hpp>
 
 /* IAM module
- * Potential complications: 
+ * Potential complications:
  * - Most of the functionality in this module must be made available by changing
  *   the device's policies file.
  * Future improvements:
@@ -47,7 +47,7 @@ namespace IAM
         << std::endl;
     }
 
-    bool list_users(std::shared_ptr<nabto::client::Connection> connection, uint32_t device)
+    bool list_users(std::shared_ptr<nabto::client::Connection> connection, const Configuration::DeviceInfo& device)
     {
         bool result = false;
         std::string path = "/iam/users";
@@ -62,7 +62,7 @@ namespace IAM
                 case 205:
                 {
                     auto cbor = coap->getResponsePayload();
-                    std::cout << "Listing all users on device [" << device << "]..." << std::endl;
+                    std::cout << "Listing all users on device " << device.GetFriendlyName() << "..." << std::endl;
                     json user_list = json::from_cbor(cbor);
                     int i = 1;
                     for (auto &user : user_list)
@@ -97,7 +97,7 @@ namespace IAM
         return result;
     }
 
-    bool list_roles(std::shared_ptr<nabto::client::Connection> connection, uint32_t device)
+    bool list_roles(std::shared_ptr<nabto::client::Connection> connection, const Configuration::DeviceInfo& device)
     {
         bool result = false;
         std::string path = "/iam/roles";
@@ -112,7 +112,7 @@ namespace IAM
                 case 205:
                 {
                     auto cbor = coap->getResponsePayload();
-                    std::cout << "Listing available roles on device [" << device << "]..." << std::endl;
+                    std::cout << "Listing available roles on device " << device.GetFriendlyName() << "..." << std::endl;
                     json role_list = json::from_cbor(cbor);
                     int i = 1;
                     for (auto &role : role_list)
@@ -147,7 +147,7 @@ namespace IAM
     }
 
     bool add_role_to_user(std::shared_ptr<nabto::client::Connection> connection,
-                          const std::string &user, const std::string &role, uint32_t device)
+                          const std::string &user, const std::string &role, const Configuration::DeviceInfo& device)
     {
         std::stringstream pathStream{};
         pathStream << "/iam/users/" << user << "/roles/" << role;
@@ -155,7 +155,7 @@ namespace IAM
 
         char answer;
         std::stringstream message{};
-        message << "(Device " << device << ") Add role \"" << role << "\" to user \"" << user << "\"? ";
+        message << "(Device " << device.GetFriendlyName() << ") Add role \"" << role << "\" to user \"" << user << "\"? ";
         bool yes = yn_prompt(message.str());
 
         if (yes)
@@ -213,14 +213,14 @@ namespace IAM
     }
 
     bool remove_role_from_user(std::shared_ptr<nabto::client::Connection> connection,
-                               const std::string &user, const std::string &role, uint32_t device)
+                               const std::string &user, const std::string &role, const Configuration::DeviceInfo& device)
     {
         std::stringstream pathStream{};
         pathStream << "/iam/users/" << user << "/roles/" << role;
         const std::string &path = pathStream.str();
 
         std::stringstream message{};
-        message << "(Device " << device << ") Remove role \"" << role << "\" from user \"" << user << "\"? ";
+        message << "(Device " << device.GetFriendlyName() << ") Remove role \"" << role << "\" from user \"" << user << "\"? ";
         bool yes = yn_prompt(message.str());
         if (yes)
         {
@@ -276,14 +276,14 @@ namespace IAM
     }
 
     bool delete_user(std::shared_ptr<nabto::client::Connection> connection,
-                                 const std::string &user, uint32_t device)
+                                 const std::string &user, const Configuration::DeviceInfo& device)
     {
         std::stringstream pathStream{};
         pathStream << "/iam/users/" << user;
         const std::string &path = pathStream.str();
 
         std::stringstream message{};
-        message << "(Device " << device << ") Delete user \"" << user << "\"? ";
+        message << "(Device " << device.GetFriendlyName() << ") Delete user \"" << user << "\"? ";
         bool yes = yn_prompt(message.str());
         if (yes)
         {

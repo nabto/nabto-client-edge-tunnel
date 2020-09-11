@@ -2,6 +2,8 @@
 #include <string>
 #include <memory>
 
+#include <sstream>
+
 namespace nabto {
 namespace client {
 
@@ -11,14 +13,25 @@ class Context;
 
 namespace Configuration
 {
-    struct DeviceInfo
+
+class DeviceInfo
+{
+ public:
+
+    std::string GetFriendlyName() const
     {
-        std::string DeviceID;
-        std::string ProductID;
-        std::string DeviceFingerprint;
-        std::string ServerConnectToken;
-        std::string DirectCandidate;
-    };
+        std::stringstream ss;
+        ss << "[" << Index << "] " << ProductID << "." << DeviceID;
+        return ss.str();
+    }
+
+    int Index;
+    std::string DeviceID;
+    std::string ProductID;
+    std::string DeviceFingerprint;
+    std::string ServerConnectToken;
+    std::string DirectCandidate;
+};
 
     struct ConfigInfo
     {
@@ -32,7 +45,8 @@ namespace Configuration
     const char* GetConfigFilePath();
     const char* GetStateFilePath();
     bool WriteStateFile();
-    DeviceInfo *GetPairedDevice(int Index);
+    std::unique_ptr<DeviceInfo> GetPairedDevice(int Index);
+    bool HasNoBookmarks();
     void AddPairedDeviceToBookmarks(DeviceInfo Info);
     bool GetPrivateKey(std::shared_ptr<nabto::client::Context> Context, std::string& PrivateKey);
     void PrintBookmarks();

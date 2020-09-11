@@ -92,7 +92,9 @@ class CloseListener : public nabto::client::ConnectionEventsCallback {
     std::promise<void> promise_;
 };
 
-std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabto::client::Context> context, uint32_t SelectedBookmark)
+
+
+std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabto::client::Context> context, Configuration::DeviceInfo Device)
 {
     Configuration::ConfigInfo Config;
     if (!Configuration::GetConfigInfo(&Config)) {
@@ -100,25 +102,13 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
         return nullptr;
     }
 
-    auto Device = Configuration::GetPairedDevice(SelectedBookmark);
-    if (!Device)
-    {
-        std::cerr << "This client does not have a device with bookmark index " << SelectedBookmark << std::endl;
-        if (SelectedBookmark == 0)
-        {
-            // If no bookmark was found at index 0, then this client isn't paired with anything.
-            std::cerr << "This client has no bookmarked devices, maybe you should try pairing with a device?" << std::endl;
-        }
-        return nullptr;
-    }
-
     auto connection = context->createConnection();
-    connection->setProductId(Device->ProductID);
-    connection->setDeviceId(Device->DeviceID);
+    connection->setProductId(Device.ProductID);
+    connection->setDeviceId(Device.DeviceID);
 
-    if (!Device->DirectCandidate.empty()) {
+    if (!Device.DirectCandidate.empty()) {
         connection->enableDirectCandidates();
-        connection->addDirectCandidate(Device->DirectCandidate, 5592);
+        connection->addDirectCandidate(Device.DirectCandidate, 5592);
         connection->endOfDirectCandidates();
     }
 
@@ -137,7 +127,7 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
         // TODO(as): ServerUrl was not found.
     }
     connection->setServerKey(Config.ServerKey);
-    connection->setServerConnectToken(Device->ServerConnectToken);
+    connection->setServerConnectToken(Device.ServerConnectToken);
 
     try {
         connection->connect()->waitForResult();
@@ -155,7 +145,7 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
     }
 
     try {
-        if (connection->getDeviceFingerprintFullHex() != Device->DeviceFingerprint) {
+        if (connection->getDeviceFingerprintFullHex() != Device.DeviceFingerprint) {
             std::cerr << "device fingerprint does not match the paired fingerprint." << std::endl;
             return nullptr;
         }
@@ -174,7 +164,7 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
 static void get_service(std::shared_ptr<nabto::client::Connection> connection, const std::string& service);
 static void print_service(const nlohmann::json& service);
 
-bool list_services(std::shared_ptr<nabto::client::Connection> connection, uint32_t device)
+bool list_services(std::shared_ptr<nabto::client::Connection> connection, const Configuration::DeviceInfo& device)
 {
     auto coap = connection->createCoap("GET", "/tcp-tunnels/services");
     coap->execute()->waitForResult();
@@ -184,7 +174,7 @@ bool list_services(std::shared_ptr<nabto::client::Connection> connection, uint32
         auto cbor = coap->getResponsePayload();
         auto data = json::from_cbor(cbor);
         if (data.is_array()) {
-            std::cout << "Services for device [" << device << "]" << std::endl;
+            std::cout << "Services for device " << device.GetFriendlyName() << std::endl;
             for (auto s : data) {
                 get_service(connection, s.get<std::string>());
             }
@@ -218,18 +208,18 @@ void print_service(const nlohmann::json& service)
     std::cout << "Service: " << id << ", Type: " << type << ", Host: " << host << ", Port: " << port << std::endl;
 }
 
-bool tcptunnel(std::shared_ptr<nabto::client::Connection> connection, const std::string& service, uint16_t localPort, uint32_t device)
+bool tcptunnel(std::shared_ptr<nabto::client::Connection> connection, const std::string& service, uint16_t localPort, const Configuration::DeviceInfo& device)
 {
     std::shared_ptr<nabto::client::TcpTunnel> tunnel;
     try {
         tunnel = connection->createTcpTunnel();
         tunnel->open(service, localPort)->waitForResult();
     } catch (std::exception& e) {
-        std::cout << "Could not open a tunnel on device [" << device << "] to the service " << service << " error: " << e.what() << std::endl;
+        std::cout << "Could not open a tunnel on device " << device.GetFriendlyName() << " to the service " << service << " error: " << e.what() << std::endl;
         return false;
     }
 
-    std::cout << "Opened a TCP Tunnel on device [" << device << "] to the service " << service << " Listening on the local port " << tunnel->getLocalPort() << std::endl;
+    std::cout << "Opened a TCP Tunnel on device " << device.GetFriendlyName() << " to the service " << service << " Listening on the local port " << tunnel->getLocalPort() << std::endl;
 
 
     // wait for ctrl c
@@ -357,8 +347,22 @@ int main(int argc, char** argv)
                  result.count("role") ||
                  result.count("delete-user"))
         {
-            uint32_t device = result["bookmark"].as<uint32_t>();
-            auto connection = createConnection(context, device);
+            // For all these commands we need a paired device.
+            uint32_t SelectedBookmark = result["bookmark"].as<uint32_t>();
+
+            if (Configuration::HasNoBookmarks()) {
+                std::cerr << "No devices has been paired, start by pairing the client with a device." << std::endl;
+                return 1;
+            }
+
+            auto Device = Configuration::GetPairedDevice(SelectedBookmark);
+            if (!Device)
+            {
+                std::cerr << "The bookmark " << SelectedBookmark << " does not exists" << std::endl;
+                return 1;
+            }
+
+            auto connection = createConnection(context, *Device);
             if (!connection) {
                 // TODO(ahs): Investigate why the connection did not open, and print more appropriate error for the user.
                 std::cout << "Could not open connection" << std::endl;
@@ -367,16 +371,16 @@ int main(int argc, char** argv)
 
             bool status = false;
             if (result.count("services")) {
-                status = list_services(connection, device);
+                status = list_services(connection, *Device);
             } else if (result.count("service")) {
-                status = tcptunnel(connection, result["service"].as<std::string>(), result["local-port"].as<uint16_t>(), device);
+                status = tcptunnel(connection, result["service"].as<std::string>(), result["local-port"].as<uint16_t>(), *Device);
             } else if (result.count("users")) {
-                status = IAM::list_users(connection, device);
+                status = IAM::list_users(connection, *Device);
             } else if (result.count("roles")) {
-                status = IAM::list_roles(connection, device);
+                status = IAM::list_roles(connection, *Device);
             } else if (result.count("add-role")) {
                 if (result.count("role")) {
-                    status = IAM::add_role_to_user(connection, result["add-role"].as<std::string>(), result["role"].as<std::string>(), device);
+                    status = IAM::add_role_to_user(connection, result["add-role"].as<std::string>(), result["role"].as<std::string>(), *Device);
                 } else {
                     std::cout
                     << "You've used the --add-role option without specifying which role to add.\n"
@@ -385,7 +389,7 @@ int main(int argc, char** argv)
                 }
             } else if (result.count("remove-role")) {
                 if (result.count("role")) {
-                    status = IAM::remove_role_from_user(connection, result["remove-role"].as<std::string>(), result["role"].as<std::string>(), device);
+                    status = IAM::remove_role_from_user(connection, result["remove-role"].as<std::string>(), result["role"].as<std::string>(), *Device);
                 } else {
                     std::cout
                     << "You've used the --remove-role option without specifying which role to remove.\n"
@@ -399,7 +403,7 @@ int main(int argc, char** argv)
                 << "Use --remove-role to specify a user that you want to remove the role from."
                 << std::endl;
             } else if (result.count("delete-user")) {
-                status = IAM::delete_user(connection, result["delete-user"].as<std::string>(), device);
+                status = IAM::delete_user(connection, result["delete-user"].as<std::string>(), *Device);
             }
 
             connection->close()->waitForResult();

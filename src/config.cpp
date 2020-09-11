@@ -40,12 +40,6 @@ namespace Configuration
         string ServerKey;
     } Configuration;
 
-    struct FileContents
-    {
-        size_t Size;
-        char *Buffer;
-    };
-
     void to_json(json& j, const DeviceInfo& d)
     {
         j = json({
@@ -276,16 +270,23 @@ namespace Configuration
         return WriteStringToFile(Contents.dump(2), Configuration.StateFilePath);
     }
 
-    DeviceInfo *GetPairedDevice(int Index)
+    std::unique_ptr<DeviceInfo> GetPairedDevice(int Index)
     {
         if (Index >= 0 && Configuration.Bookmarks.size() > Index)
         {
-            return &Configuration.Bookmarks[Index];
+            auto device = std::make_unique<DeviceInfo>(Configuration.Bookmarks[Index]);
+            device->Index = Index;
+            return device;
         }
         else
         {
             return nullptr;
         }
+    }
+
+    bool HasNoBookmarks()
+    {
+        return Configuration.Bookmarks.empty();
     }
 
     void AddPairedDeviceToBookmarks(DeviceInfo Info)
