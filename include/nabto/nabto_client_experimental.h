@@ -18,11 +18,32 @@ extern "C" {
  ******************/
 typedef struct NabtoClientMdnsResult_ NabtoClientMdnsResult;
 
+
+typedef enum NabtoClientMdnsAction_ {
+    /**
+     * This action is emitted when a mdns cache item is added.
+     */
+    NABTO_CLIENT_MDNS_ACTION_ADD = 0,
+    /**
+     * This action is emitted when an mdns cache item is updated.
+     */
+    NABTO_CLIENT_MDNS_ACTION_UPDATE = 1,
+    /**
+     * This action is emitted when an mdns cache item is removed,
+     * ie. the ttl has expired for the item.
+     */
+    NABTO_CLIENT_MDNS_ACTION_REMOVE = 2
+} NabtoClientMdnsAction;
+
 /**
  * Init listener as mdns resolver
+ *
+ * Init a mdns result listener. If the subtype is non null or the non
+ * empty string the mDNS subtype <subtype>._sub._nabto._udp.local is
+ * located instead of the mDNS service _nabto._udp.local.
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
-nabto_client_mdns_resolver_init_listener(NabtoClient* client, NabtoClientListener* listener);
+nabto_client_mdns_resolver_init_listener(NabtoClient* client, NabtoClientListener* listener, const char* subtype);
 
 /**
  * Wait for a new mdns result.
@@ -37,32 +58,45 @@ NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_mdns_result_free(NabtoClientMdnsResult* result);
 
 /**
- * Experimental: get IP address of from result object
- * @return String representation of IP address or NULL
- */
-NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
-nabto_client_mdns_result_get_address(NabtoClientMdnsResult* result, const char** address);
-
-/**
- * Experimental: get port of from result object
- * @return port number or 0
- */
-NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
-nabto_client_mdns_result_get_port(NabtoClientMdnsResult* result, uint16_t* port);
-
-/**
  * Experimental: get device ID of from result object
- * @return the device ID or NULL
+ * @return the device ID or the empty string if not set
  */
-NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
-nabto_client_mdns_result_get_device_id(NabtoClientMdnsResult* result, const char** deviceId);
+NABTO_CLIENT_DECL_PREFIX const char* NABTO_CLIENT_API
+nabto_client_mdns_result_get_device_id(NabtoClientMdnsResult* result);
 
 /**
  * Experimental: get product ID of from result object
- * @return the product ID or NULL
+ * @return the product ID or the empty string if not set
  */
-NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
-nabto_client_mdns_result_get_product_id(NabtoClientMdnsResult* result, const char** productId);
+NABTO_CLIENT_DECL_PREFIX const char* NABTO_CLIENT_API
+nabto_client_mdns_result_get_product_id(NabtoClientMdnsResult* result);
+
+/**
+ * Get the service instance name, this can be used to correlate results.
+ * This is never NULL and always defined
+ */
+NABTO_CLIENT_DECL_PREFIX const char* NABTO_CLIENT_API
+nabto_client_mdns_result_get_service_instance_name(NabtoClientMdnsResult* result);
+
+/**
+ * Get the txt record key value pairs as a json encoded string.
+ * The string is owned by the NabtoClientMdnsResult object.
+ *
+ * The data is encoded as { "key1": "value1", "key2": "value2" }
+ */
+NABTO_CLIENT_DECL_PREFIX const char* NABTO_CLIENT_API
+nabto_client_mdns_result_get_txt_items(NabtoClientMdnsResult* result);
+
+/**
+ * Get the action for the result
+ */
+NABTO_CLIENT_DECL_PREFIX NabtoClientMdnsAction NABTO_CLIENT_API
+nabto_client_mdns_result_get_action(NabtoClientMdnsResult* result);
+
+
+/**
+ * TCP Tunel experimental features
+ */
 
 
 /* enum NabtoClientTcpTunnelListenMode { */

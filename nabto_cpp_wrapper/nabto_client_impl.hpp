@@ -125,45 +125,42 @@ class MdnsResultImpl : public MdnsResult {
     ~MdnsResultImpl() {
         nabto_client_mdns_result_free(result_);
     }
-    virtual std::string getAddress()
-    {
-        const char* str;
-        auto ec = nabto_client_mdns_result_get_address(result_, &str);
-        if (ec) {
-            throw NabtoException(ec);
-        }
-        return std::string(str);
-    }
-
-    virtual int getPort()
-    {
-        uint16_t port;
-        auto ec = nabto_client_mdns_result_get_port(result_, &port);
-        if (ec) {
-            throw NabtoException(ec);
-        }
-        return port;
-    }
 
     virtual std::string getDeviceId()
     {
-        const char* str;
-        auto ec = nabto_client_mdns_result_get_device_id(result_, &str);
-        if (ec) {
-            throw NabtoException(ec);
-        }
+        const char* str = nabto_client_mdns_result_get_device_id(result_);
         return std::string(str);
     }
 
     virtual std::string getProductId()
     {
-        const char* str;
-        auto ec = nabto_client_mdns_result_get_product_id(result_, &str);
-        if (ec) {
-            throw NabtoException(ec);
-        }
+        const char* str = nabto_client_mdns_result_get_product_id(result_);
         return std::string(str);
     }
+
+    virtual std::string getServiceInstanceName()
+    {
+        return std::string(nabto_client_mdns_result_get_service_instance_name(result_));
+    }
+
+    virtual std::string getTxtItems()
+    {
+        return std::string(nabto_client_mdns_result_get_txt_items(result_));
+    }
+
+    virtual MdnsResult::Action getAction()
+    {
+        NabtoClientMdnsAction action = nabto_client_mdns_result_get_action(result_);
+        switch (action) {
+            case NABTO_CLIENT_MDNS_ACTION_ADD: return MdnsResult::Action::ADD;
+            case NABTO_CLIENT_MDNS_ACTION_UPDATE: return MdnsResult::Action::UPDATE;
+            case NABTO_CLIENT_MDNS_ACTION_REMOVE: return MdnsResult::Action::REMOVE;
+            default:
+                // never here!
+                return MdnsResult::Action::ADD;
+        }
+    }
+
  private:
     NabtoClientMdnsResult* result_;
 };
@@ -306,11 +303,11 @@ class FutureVoidImpl : public FutureVoid, public std::enable_shared_from_this<Fu
 
 class MdnsResolverImpl : public MdnsResolver {
  public:
-    MdnsResolverImpl(NabtoClient* context)
+    MdnsResolverImpl(NabtoClient* context, const std::string& subtype)
         : context_(context)
     {
         resolver_ = nabto_client_listener_new(context);
-        nabto_client_mdns_resolver_init_listener(context, resolver_);
+        nabto_client_mdns_resolver_init_listener(context, resolver_, subtype.c_str());
     }
     ~MdnsResolverImpl()
     {
@@ -498,6 +495,7 @@ class TcpTunnelImpl : public TcpTunnel {
     NabtoClientTcpTunnel* tcpTunnel_;
     NabtoClient* context_;
 };
+
 
 class ConnectionImpl;
 
@@ -707,6 +705,10 @@ class ConnectionImpl : public Connection, public std::enable_shared_from_this<Co
         return (int)nabto_client_connection_get_remote_channel_error_code(connection_);
     }
 
+    int getDirectCandidatesChannelErrorCode() {
+        return (int)nabto_client_connection_get_direct_candidates_channel_error_code(connection_);
+    }
+
     void enableDirectCandidates()
     {
         NabtoClientError ec = nabto_client_connection_enable_direct_candidates(connection_);
@@ -753,23 +755,16 @@ class ConnectionImpl : public Connection, public std::enable_shared_from_this<Co
         return CoapImpl::create(context_, connection_, method, path);
     }
 
-    bool passwordAuthenticate(const std::string& password)
-    {
-        bool result = true;
-        NabtoClientFuture *future = nabto_client_future_new(context_);
-        nabto_client_connection_password_authenticate(connection_, "", password.c_str(), future);
-        nabto_client_future_wait(future);
-        if (nabto_client_future_ready(future) != NABTO_CLIENT_EC_OK)
-        {
-            result = false;
-        }
-        nabto_client_future_free(future);
-        return result;
-    }
-
     std::shared_ptr<TcpTunnel> createTcpTunnel()
     {
         return std::make_shared<TcpTunnelImpl>(context_, connection_);
+    }
+
+    std::shared_ptr<FutureVoid> passwordAuthenticate(const std::string& username, const std::string& password)
+    {
+        auto future = std::make_shared<FutureVoidImpl>(context_);
+        nabto_client_connection_password_authenticate(connection_, username.c_str(), password.c_str(), future->getFuture());
+        return future;
     }
 
     void notifyEvent(int event) {
@@ -844,8 +839,8 @@ class ContextImpl : public Context {
         return ptr;
     }
 
-    std::shared_ptr<MdnsResolver> createMdnsResolver() {
-        return std::make_shared<MdnsResolverImpl>(context_);
+    std::shared_ptr<MdnsResolver> createMdnsResolver(const std::string& subtype) {
+        return std::make_shared<MdnsResolverImpl>(context_, subtype);
     }
 
     void setLogger(std::shared_ptr<Logger> logger) {

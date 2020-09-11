@@ -253,8 +253,11 @@ int main(int argc, char** argv)
         ("version", "Show version")
         ("H,home", "Override the directory in which configuration files are saved to.", cxxopts::value<std::string>())
         ("log-level", "Log level (none|error|info|trace)", cxxopts::value<std::string>()->default_value("error"))
-        ("list-bookmarks", "List bookmarked devices")
+        ;
+    options.add_options("Bookmarks")
+        ("bookmarks", "List bookmarked devices")
         ("b,bookmark", "Select a bookmarked device to use with other commands.", cxxopts::value<uint32_t>()->default_value("0"))
+        ("delete-bookmark", "Delete a pairing with a device")
         ;
 
     options.add_options("Pairing")
@@ -274,7 +277,7 @@ int main(int argc, char** argv)
         ;
 
     options.add_options("TCP Tunnelling")
-        ("list-services", "List available services on the device")
+        ("services", "List available services on the device")
         ("service", "Create a tunnel to this service", cxxopts::value<std::string>())
         ("local-port", "Local port to bind tcp listener to", cxxopts::value<uint16_t>()->default_value("0"))
         ;
@@ -303,7 +306,7 @@ int main(int argc, char** argv)
             Configuration::Initialize();
         }
 
-        if (result.count("list-bookmarks"))
+        if (result.count("bookmarks"))
         {
             Configuration::PrintBookmarks();
             return 0;
@@ -345,7 +348,7 @@ int main(int argc, char** argv)
             return 0;
         }
 
-        else if (result.count("list-services") ||
+        else if (result.count("services") ||
                  result.count("service") ||
                  result.count("users") ||
                  result.count("roles") ||
@@ -363,7 +366,7 @@ int main(int argc, char** argv)
             }
 
             bool status = false;
-            if (result.count("list-services")) {
+            if (result.count("services")) {
                 status = list_services(connection, device);
             } else if (result.count("service")) {
                 status = tcptunnel(connection, result["service"].as<std::string>(), result["local-port"].as<uint16_t>(), device);

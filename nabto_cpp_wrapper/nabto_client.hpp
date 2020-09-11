@@ -57,7 +57,6 @@ class Status {
     int errorCode_;
 };
 
-
 class NabtoException : public std::exception
 {
  public:
@@ -138,13 +137,23 @@ class FutureBuffer : public Future {
     virtual std::vector<uint8_t> getResult() = 0;
 };
 
+
+
 class MdnsResult {
  public:
+
+    enum Action {
+        ADD,
+        UPDATE,
+        REMOVE
+    };
+
     virtual ~MdnsResult() {};
-    virtual std::string getAddress() = 0;
-    virtual int getPort() = 0;
     virtual std::string getDeviceId() = 0;
     virtual std::string getProductId() = 0;
+    virtual std::string getServiceInstanceName() = 0;
+    virtual std::string getTxtItems() = 0;
+    virtual Action getAction() = 0;
 };
 
 class FutureMdnsResult : public Future {
@@ -221,6 +230,7 @@ class Connection {
     virtual std::string getInfo() = 0;
     virtual int getLocalChannelErrorCode() = 0;
     virtual int getRemoteChannelErrorCode() = 0;
+    virtual int getDirectCandidatesChannelErrorCode() = 0;
     virtual void enableDirectCandidates() = 0;
     virtual void addDirectCandidate(const std::string& hostname, uint16_t port) = 0;
     virtual void endOfDirectCandidates() = 0;
@@ -228,13 +238,12 @@ class Connection {
     virtual void addEventsListener(std::shared_ptr<ConnectionEventsCallback> callback) = 0;
     virtual void removeEventsListener(std::shared_ptr<ConnectionEventsCallback> callback) = 0;
 
-    virtual bool passwordAuthenticate(const std::string& password) = 0;
-
     virtual std::shared_ptr<FutureVoid> connect() = 0;
     virtual std::shared_ptr<Stream> createStream() = 0;
     virtual std::shared_ptr<FutureVoid> close() = 0;
     virtual std::shared_ptr<Coap> createCoap(const std::string& method, const std::string& path) = 0;
     virtual std::shared_ptr<TcpTunnel> createTcpTunnel() = 0;
+    virtual std::shared_ptr<FutureVoid> passwordAuthenticate(const std::string& username, const std::string& password) = 0;
 };
 
 class Context {
@@ -243,7 +252,7 @@ class Context {
     static std::shared_ptr<Context> create();
     virtual ~Context() {};
     virtual std::shared_ptr<Connection> createConnection() = 0;
-    virtual std::shared_ptr<MdnsResolver> createMdnsResolver() = 0;
+    virtual std::shared_ptr<MdnsResolver> createMdnsResolver(const std::string& subtype) = 0;
     virtual void setLogger(std::shared_ptr<Logger> logger) = 0;
     virtual void setLogLevel(const std::string& level) = 0;
     virtual std::string createPrivateKey() = 0;

@@ -149,8 +149,11 @@ static bool password_pair_password(std::shared_ptr<nabto::client::Connection> co
     nlohmann::json root;
     root["Name"] = name;
 
-    if (!connection->passwordAuthenticate(password)) {
-        std::cout << "Could not authenticate with device. Ensure you typed the correct password." << std::endl;
+
+    try {
+        connection->passwordAuthenticate("", password)->waitForResult();
+    } catch (nabto::client::NabtoException& e) {
+        std::cout << "Could not password authenticate with device. Ensure you typed the correct password. The error message is " << e.status().getDescription() << std::endl;
         return false;
     }
 
@@ -454,9 +457,11 @@ bool direct_pair(std::shared_ptr<nabto::client::Context> Context, const std::str
         return false;
     }
 
+    uint16_t port = 5592;
+
     connection->setPrivateKey(privateKey);
     connection->enableDirectCandidates();
-    connection->addDirectCandidate(host, 5592);
+    connection->addDirectCandidate(host, port);
     connection->endOfDirectCandidates();
 
     json options;
@@ -470,15 +475,16 @@ bool direct_pair(std::shared_ptr<nabto::client::Context> Context, const std::str
     try {
         connection->connect()->waitForResult();
     } catch (nabto::client::NabtoException& e) {
+        std::cerr << "Could not make a direct connection to the host: " << host << ". The error code is: ";
         if (e.status().getErrorCode() == nabto::client::Status::NO_CHANNELS) {
-            auto localStatus = nabto::client::Status(connection->getLocalChannelErrorCode());
-            auto remoteStatus = nabto::client::Status(connection->getRemoteChannelErrorCode());
-            std::cerr << "Not Connected." << std::endl;
-            std::cerr << " The Local status is: " << localStatus.getDescription() << std::endl;
-            std::cerr << " The Remote status is: " << remoteStatus.getDescription() << std::endl;
+            auto directCandidatesStatus = nabto::client::Status(connection->getDirectCandidatesChannelErrorCode());
+            if (!directCandidatesStatus.ok()) {
+                std::cerr << directCandidatesStatus.getDescription();
+            }
         } else {
-            std::cerr << "Connect failed " << e.what() << std::endl;
+            std::cerr << e.what();
         }
+        std::cerr << std::endl;
         return false;
     }
 

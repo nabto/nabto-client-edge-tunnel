@@ -104,8 +104,6 @@
 %catches (nabto::client::NabtoException) nabto::client::FutureBuffer::getResult();
 %catches (nabto::client::NabtoException) nabto::client::FutureMdnsResult::waitForResult();
 %catches (nabto::client::NabtoException) nabto::client::FutureMdnsResult::getResult();
-%catches (nabto::client::NabtoException) nabto::client::MdnsResult::getAddress();
-%catches (nabto::client::NabtoException) nabto::client::MdnsResult::getPort();
 %catches (nabto::client::NabtoException) nabto::client::MdnsResult::getDeviceId();
 %catches (nabto::client::NabtoException) nabto::client::MdnsResult::getProductId();
 %catches (nabto::client::NabtoException) nabto::client::TcpTunnel::open(uint16_t localPort, uint16_t remotePort);

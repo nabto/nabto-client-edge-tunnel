@@ -268,100 +268,70 @@ nabto_client_connection_new(NabtoClient* context);
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_connection_free(NabtoClientConnection* connection);
 
-/*
+/**
+ * Set options with a json encoded document.
+ *
  * There are two ways to setup connection options. Either use the
  * unified json interface which has all possible options, or use the
  * individual set functions for the most commonly used connection
  * options.
- */
-
-/*
- * Json encoded connection options
  *
  * This functions can be used to set connection parameters in
  * bulk or as indidual parameters.
  *
- * All connection options
- * PrivateKey: string pem encoded EC private key
- * ProductId: string
- * DeviceId: string
- * ServerUrl: string
- * ServerKey: string
- * ServerJwtToken: string
- * AppName: string
- * AppVersion: string
+ * Connection options.
+ * - PrivateKey: string pem encoded EC private key
+ * - ProductId: string
+ * - DeviceId: string
+ * - ServerUrl: string
+ * - ServerKey: string
+ * - ServerJwtToken: string
+ * - AppName: string
+ * - AppVersion: string
  *
  * Control the keep alive settings for the connection between
  * the client and the device.
- * KeepAliveInterval: unsigned integer
- * KeepAliveRetryInterval: unsigned integer
- * KeepAliveMaxRetries: unsigned integer
+ * - KeepAliveInterval: unsigned integer
+ * - KeepAliveRetryInterval: unsigned integer
+ * - KeepAliveMaxRetries: unsigned integer
  *
- * Local: (true|false)
- *  Set local to enable/disable local connections
+ * Control which connections features to use.
  *
- * Remote: (true|false)
- *  Enable/disable connections mediated through a cloud server.
+ * Set local to enable/disable local connections
+ * - Local: (true|false)
  *
- * Rendezvous: (true|false)
- *  Enable/disable udp holepunching on remote connections.
- */
-
-/*
+ * Enable/disable connections mediated through a cloud server.
+ * - Remote: (true|false)
+ *
+ * Enable/disable udp holepunching on remote connections.
+ * - Rendezvous: (true|false)
+ *
+ * Use pre 5.2 local discovery.  Before 5.2 devices is located by
+ * doing a mDNS scan for all the devices. After 5.2 including 5.2,
+ * devices are located by a device specific mDNS subtype. Set this
+ * option to true to use the pre 5.2 way of locating devices.
+ * - ScanLocalConnect: (true|false)
+ *
  * Example force local connections:
  *
-std::string options = R"(
-{
-    "Remote": false
-}
-)";
-nabto_client_connection_set_options(connection, options.c_str());
-*/
-
-/*
+ * std::string options = R"(
+ * {
+ *   "Remote": false
+ * }
+ * )";
+ * nabto_client_connection_set_options(connection, options.c_str());
+ *
  * Example setup a connection
  *
-std::string options = R"(
-{
-    "ProductId": "pr-12345678",
-    "DeviceId": "de-12345678",
-    "ServerUrl": "https://pr-12345678.clients.nabto.net",
-    "ServerKey": "sk-12345678123456781234567812345678"
-}
-)";
-nabto_client_connection_set_options(connection, options.c_str());
-*/
-
-/**
- * Set connection parameters through a JSON document as an alternative to invoking the individual
- * `nabto_client_connection_set_xyz` functions.
- *
- * An error is returned if a parameter is not recognized. This only updates the internal
- * representation of parameters.
- *
- * Options are set in a JSON document as follows:
- * ```
+ * std::string options = R"(
  * {
  *   "ProductId": "pr-12345678",
  *   "DeviceId": "de-12345678",
  *   "ServerUrl": "https://pr-12345678.clients.nabto.net",
  *   "ServerKey": "sk-12345678123456781234567812345678"
  * }
- * ```
- *
- * The following options are supported:
- *
- * ```
- * ProductId
- * DeviceId
- * PrivateKey
- * ServerUrl
- * ServerKey
- * ServerJwtToken
- * ServerConnectToken
- * AppName
- * AppVersion
- * ```
+ * )";
+ * nabto_client_connection_set_options(connection, options.c_str());
  *
  * This function can only be invoked before the connection
  * establishment is started.
@@ -613,6 +583,7 @@ nabto_client_connection_enable_direct_candidates(NabtoClientConnection* connecti
  * @param hostname   Either a dns name or an ip address.
  * @param port       Port to connect to.
  * @return NABTO_CLIENT_EC_OK if ok.
+ *         NABTO_CLIENT_EC_INVALID_ARGUMENT if the arguments is obviously invalid. e.g. using port number 0
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_connection_add_direct_candidate(NabtoClientConnection* connection, const char* hostname, uint16_t port);
@@ -700,6 +671,17 @@ nabto_client_connection_get_local_channel_error_code(NabtoClientConnection* conn
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_connection_get_remote_channel_error_code(NabtoClientConnection* connection);
+
+/**
+ * Get error code for the direct chandidates channels
+ *
+ * @return NABTO_CLIENT_EC_OK  if a direct candidate was found.
+ *         NABTO_CLIENT_EC_NONE  direct candidates was not enabled.
+ *         NABTO_CLIENT_EC_NOT_FOUND  If no direct candidates resulted in UDP ping responses.
+ *         NABTO_CLIENT_EC_OPERATION_IN_PROGRESS  if operation is in progress.
+ */
+NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
+nabto_client_connection_get_direct_candidates_channel_error_code(NabtoClientConnection* connection);
 
 
 /**
@@ -812,10 +794,12 @@ NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_stream_open(NabtoClientStream* stream, NabtoClientFuture* future, uint32_t port);
 
 /**
- * Read exactly n bytes from a stream
+ * Read exactly n bytes from a stream.
  *
- * if (readLength != bufferLength) the stream has reached a state
- * where no more bytes can be read.
+ * If (readLength != bufferLength), the stream has reached a state where the amount of bytes
+ * specified by bufferLength could NOT be read. The amount of bytes which could be read is copied to
+ * the buffer and readLength is less than bufferLength In any subsequent invocation,
+ * NABTO_CLIENT_EC_EOF will be returned.
  *
  * @param stream [in]       The stream to read bytes from.
  * @param buffer [out]      The buffer to put data into. It needs to be kept available until the future resolves.
@@ -823,10 +807,9 @@ nabto_client_stream_open(NabtoClientStream* stream, NabtoClientFuture* future, u
  * @param readLength [out]  The actual number of bytes read. It needs to be kept available until the future resolves.
  * @return  a future which resolves with ok or an error.
  * Future status:
- *  NABTO_CLIENT_EC_OK   if all or some data was read,
-                      if the stream is eof less than bufferLength could be read..
- *  NABTO_CLIENT_EC_EOF  if the stream is eof.
- *  NABTO_CLIENT_EC_ABORTED if the stream is aborted.
+ *  NABTO_CLIENT_EC_OK  if all or some data was read
+ *  NABTO_CLIENT_EC_EOF  if the stream is eof
+ *  NABTO_CLIENT_EC_ABORTED if the stream is aborted
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_stream_read_all(NabtoClientStream* stream, NabtoClientFuture* future, void* buffer, size_t bufferLength, size_t* readLength);
@@ -1071,7 +1054,9 @@ nabto_client_tcp_tunnel_free(NabtoClientTcpTunnel* tunnel);
  * @return a future, when resolved the tunnel is either established or failed. If established, TCP clients can connect to the endpoint.
  *
  * Future status:
- *   NABTO_CLIENT_EC_OK if opening went ok.
+ *   NABTO_CLIENT_EC_OK if opening went ok
+ *   NABTO_CLIENT_EC_NOT_FOUND if requesting an unknown service
+ *   NABTO_CLIENT_EC_FORBIDDEN if target device did not allow opening a tunnel to specified service for the current client
  *
  *      +--------+          +-----------+               +--------+
  *      | nabto  |   nabto  |   nabto   |   tcp/ip      | remote |
@@ -1152,6 +1137,11 @@ nabto_client_future_new(NabtoClient* context);
 
 /**
  * Free a future.
+ *
+ * Free must never be called on an unresolved future. If necessary, first cancel the pending async
+ * operation to resolve the future as soon as possible. Use the operation specific close/abort/free
+ * function as necessary such as nabto_client_connection_close. Or use nabto_client_stop to cancel
+ * all pending operations.
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_future_free(NabtoClientFuture* future);
