@@ -252,7 +252,6 @@ int main(int argc, char** argv)
 
     options.add_options("Pairing")
         ("pair", "Pair the client with a tcptunnel device interactively")
-        ("pair-url", "Pair with a tcptunnel device using an URL", cxxopts::value<std::string>())
         ("pair-string", "Pair with a tcp tunnel device using a pairing string", cxxopts::value<std::string>())
         ("pair-direct", "Pair with a tcp tunnel device directly using its ip or hostname", cxxopts::value<std::string>())
         ;
@@ -315,12 +314,6 @@ int main(int argc, char** argv)
 
         if (result.count("pair")) {
             if (!interactive_pair(context, userName)) {
-                return 1;
-            }
-            return 0;
-        }
-        else if (result.count("pair-url")) {
-            if (!link_pair(context, userName, result["pair-url"].as<std::string>())) {
                 return 1;
             }
             return 0;

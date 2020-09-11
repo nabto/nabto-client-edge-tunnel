@@ -329,29 +329,6 @@ static std::vector<std::string> split(const std::string& s, char delimiter)
    return tokens;
 }
 
-static std::map<std::string, std::string> parseQueryString(const std::string& url)
-{
-    std::map<std::string, std::string> args;
-    auto andArgs = split(url, '?');
-
-    if (andArgs.size() < 2) {
-        return args;
-    }
-    std::string qs = andArgs[1];
-
-    auto pairs = split(qs, '&');
-
-    for (auto p : pairs) {
-        auto kv = split(p, '=');
-        if (kv.size() >= 2) {
-            args[kv[0]] = kv[1];
-        }
-    }
-
-    return args;
-}
-
-
 static std::map<std::string, std::string> parseStringArgs(const std::string pairingString)
 {
     // k1=v1,k2=v2
@@ -370,15 +347,6 @@ static std::map<std::string, std::string> parseStringArgs(const std::string pair
 
 bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userName, const string& productId, const string& deviceId, const string& password, const string& sct);
 
-bool link_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userName, const string& remotePairUrl)
-{
-    std::map<std::string, std::string> args = parseQueryString(remotePairUrl);
-    string productId = args["p"];
-    string deviceId = args["d"];
-    string pairingPassword = args["pwd"];
-    string serverConnectToken = args["sct"];
-    return param_pair(ctx, userName, productId, deviceId, pairingPassword, serverConnectToken);
-}
 
 bool string_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userName, const string& pairingString)
 {
