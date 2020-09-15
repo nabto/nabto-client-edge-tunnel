@@ -257,22 +257,22 @@ bool interactive_pair(std::shared_ptr<nabto::client::Context> Context, const str
 
         std::cout << "Connected to device ProductId: " <<  ProductID << " DeviceId: " << DeviceID << std::endl;
         std::cout << "Is this the correct fingerprint of the device " << connection->getDeviceFingerprintFullHex() << " [y/n]" << std::endl;
-        {
-            char input;
-            std::cin >> input;
-            if (!is_char_case_insensitive(input, 'y')) {
-                if (is_char_case_insensitive(input, 'q')) {
-                    std::cout << "Quitting" << std::endl;
-                }
-                else if (is_char_case_insensitive(input, 'n')) {
-                    std::cout << "Rejected device fingerprint, quitting" << std::endl;
-                }
-                else {
-                    std::cout << "Invalid choice, quitting" << std::endl;
-                }
-                return false;
-            }
-        }
+        // {
+        //     char input;
+        //     std::cin >> input;
+        //     if (!is_char_case_insensitive(input, 'y')) {
+        //         if (is_char_case_insensitive(input, 'q')) {
+        //             std::cout << "Quitting" << std::endl;
+        //         }
+        //         else if (is_char_case_insensitive(input, 'n')) {
+        //             std::cout << "Rejected device fingerprint, quitting" << std::endl;
+        //         }
+        //         else {
+        //             std::cout << "Invalid choice, quitting" << std::endl;
+        //         }
+        //         return false;
+        //     }
+        // }
     }
 
     DeviceConfig.DeviceFingerprint = connection->getDeviceFingerprintFullHex();
