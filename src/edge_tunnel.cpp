@@ -179,7 +179,7 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
     }
 
     if (!isPaired(connection)) {
-        std::cerr << "Client is not paired with device, do the pairing again" << std::endl;
+        std::cerr << "The client is not paired with device, do the pairing again" << std::endl;
         return nullptr;
     }
     return connection;
@@ -198,7 +198,7 @@ bool list_services(std::shared_ptr<nabto::client::Connection> connection, const 
         auto cbor = coap->getResponsePayload();
         auto data = json::from_cbor(cbor);
         if (data.is_array()) {
-            std::cout << "Services for device " << device.GetFriendlyName() << std::endl;
+            std::cout << "Available services ..." << std::endl;
             for (auto s : data) {
                 get_service(connection, s.get<std::string>());
             }
@@ -223,28 +223,67 @@ void get_service(std::shared_ptr<nabto::client::Connection> connection, const st
     }
 }
 
+std::string constant_width_string(std::string in) {
+    const size_t maxLength = 10;
+    if (in.size() > maxLength) {
+        return in;
+    }
+    in.append(maxLength - in.size(), ' ');
+    return in;
+}
+
 void print_service(const nlohmann::json& service)
 {
     std::string id = service["Id"].get<std::string>();
     std::string type = service["Type"].get<std::string>();
     std::string host = service["Host"].get<std::string>();
     uint16_t port = service["Port"].get<uint16_t>();
-    std::cout << "Service: " << id << ", Type: " << type << ", Host: " << host << ", Port: " << port << std::endl;
+    std::cout << "Service: " << constant_width_string(id) << " Type: " << constant_width_string(type) << " Host: " << host << "  Port: " << port << std::endl;
 }
 
-bool tcptunnel(std::shared_ptr<nabto::client::Connection> connection, const std::string& service, uint16_t localPort, const Configuration::DeviceInfo& device)
+bool split_in_service_and_port(const std::string& in, std::string& service, uint16_t& port)
 {
-    std::shared_ptr<nabto::client::TcpTunnel> tunnel;
-    try {
-        tunnel = connection->createTcpTunnel();
-        tunnel->open(service, localPort)->waitForResult();
-    } catch (std::exception& e) {
-        std::cout << "Could not open a tunnel on device " << device.GetFriendlyName() << " to the service " << service << " error: " << e.what() << std::endl;
-        return false;
+    std::size_t colon = in.find_first_of(":");
+    if (colon != std::string::npos) {
+        service = in.substr(0,colon);
+        std::string portStr = in.substr(colon+1);
+        try {
+            port = std::stoi(portStr);
+        } catch (std::invalid_argument& e) {
+            std::cerr << "the format for the service is not correct the string " << in << " cannot be parsed as service:port" << std::endl;
+            return false;
+        }
+    } else {
+        port = 0;
+        service = in;
     }
 
-    std::cout << "Opened a TCP Tunnel on device " << device.GetFriendlyName() << " to the service " << service << " Listening on the local port " << tunnel->getLocalPort() << std::endl;
+    return true;
+}
 
+bool tcptunnel(std::shared_ptr<nabto::client::Connection> connection, std::vector<std::string> services, const Configuration::DeviceInfo& device)
+{
+    std::vector<std::shared_ptr<nabto::client::TcpTunnel> > tunnels;
+
+    for (auto serviceAndPort : services) {
+        std::string service;
+        uint16_t localPort;
+        if (!split_in_service_and_port(serviceAndPort, service, localPort)) {
+            return false;
+        }
+
+        std::shared_ptr<nabto::client::TcpTunnel> tunnel;
+        try {
+            tunnel = connection->createTcpTunnel();
+            tunnel->open(service, localPort)->waitForResult();
+        } catch (std::exception& e) {
+            std::cout << "Failed to open a tunnel to " << serviceAndPort << " error: " << e.what() << std::endl;
+            return false;
+        }
+
+        std::cout << "TCP Tunnel opened for the service " << service << " listening on the local port " << tunnel->getLocalPort() << std::endl;
+        tunnels.push_back(tunnel);
+    }
 
     // wait for ctrl c
     signal(SIGINT, &signalHandler);
@@ -261,6 +300,8 @@ bool tcptunnel(std::shared_ptr<nabto::client::Connection> connection, const std:
 int main(int argc, char** argv)
 {
     cxxopts::Options options("Tunnel client", "Nabto tunnel client example.");
+
+    std::vector<std::string> services;
 
     options.add_options("General")
         ("h,help", "Show help")
@@ -283,6 +324,7 @@ int main(int argc, char** argv)
     options.add_options("IAM")
         ("users", "List all users on selected device.")
         ("roles", "List roles available on device.")
+        ("user", "Get the user with the given id", cxxopts::value<std::string>())
         ("add-role", "Add a role to a user on device.", cxxopts::value<std::string>())
         ("remove-role", "Remove a role from a user on device.", cxxopts::value<std::string>())
         ("role", "Used in conjunction with --add-role and --remove-role.", cxxopts::value<std::string>())
@@ -291,8 +333,7 @@ int main(int argc, char** argv)
 
     options.add_options("TCP Tunnelling")
         ("services", "List available services on the device")
-        ("service", "Create a tunnel to this service", cxxopts::value<std::string>())
-        ("local-port", "Local port to bind tcp listener to", cxxopts::value<uint16_t>()->default_value("0"))
+        ("service", "Create a tunnel to this service. The default local port is an ephemeral port. A specific local port can be used using the syntax --service <service>:<port> e.g. --service ssh:4242 to establish a tunnel to the ssh service and listen for connections to it on the local TCP port 4242", cxxopts::value<std::vector<std::string> >(services))
         ;
 
 
@@ -382,16 +423,15 @@ int main(int argc, char** argv)
 
             auto connection = createConnection(context, *Device);
             if (!connection) {
-                // TODO(ahs): Investigate why the connection did not open, and print more appropriate error for the user.
-                std::cout << "Could not open connection" << std::endl;
                 return 1;
             }
+            std::cout << "Connected to the device " << Device->GetFriendlyName() << std::endl;
 
             bool status = false;
             if (result.count("services")) {
                 status = list_services(connection, *Device);
             } else if (result.count("service")) {
-                status = tcptunnel(connection, result["service"].as<std::string>(), result["local-port"].as<uint16_t>(), *Device);
+                status = tcptunnel(connection, services, *Device);
             } else if (result.count("users")) {
                 status = IAM::list_users(connection, *Device);
             } else if (result.count("roles")) {

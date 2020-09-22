@@ -62,7 +62,7 @@ namespace IAM
                 case 205:
                 {
                     auto cbor = coap->getResponsePayload();
-                    std::cout << "Listing all users on device " << device.GetFriendlyName() << "..." << std::endl;
+                    std::cout << "Listing all users on the device ..." << std::endl;
                     json user_list = json::from_cbor(cbor);
                     int i = 1;
                     for (auto &user : user_list)
@@ -112,7 +112,7 @@ namespace IAM
                 case 205:
                 {
                     auto cbor = coap->getResponsePayload();
-                    std::cout << "Listing available roles on device " << device.GetFriendlyName() << "..." << std::endl;
+                    std::cout << "Listing available roles on the device ..." << std::endl;
                     json role_list = json::from_cbor(cbor);
                     int i = 1;
                     for (auto &role : role_list)
@@ -155,7 +155,7 @@ namespace IAM
 
         char answer;
         std::stringstream message{};
-        message << "(Device " << device.GetFriendlyName() << ") Add role \"" << role << "\" to user \"" << user << "\"? ";
+        message << "Add the role \"" << role << "\" to the user \"" << user << "\"? ";
         bool yes = yn_prompt(message.str());
 
         if (yes)
@@ -220,7 +220,7 @@ namespace IAM
         const std::string &path = pathStream.str();
 
         std::stringstream message{};
-        message << "(Device " << device.GetFriendlyName() << ") Remove role \"" << role << "\" from user \"" << user << "\"? ";
+        message << "Remove the role \"" << role << "\" from the user \"" << user << "\"? ";
         bool yes = yn_prompt(message.str());
         if (yes)
         {
@@ -283,7 +283,7 @@ namespace IAM
         const std::string &path = pathStream.str();
 
         std::stringstream message{};
-        message << "(Device " << device.GetFriendlyName() << ") Delete user \"" << user << "\"? ";
+        message << "Delete the user \"" << user << "\"? ";
         bool yes = yn_prompt(message.str());
         if (yes)
         {
