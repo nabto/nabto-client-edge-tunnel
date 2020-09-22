@@ -126,6 +126,11 @@ NABTO_CLIENT_DECL_PREFIX extern const NabtoClientError NABTO_CLIENT_EC_TOKEN_REJ
 NABTO_CLIENT_DECL_PREFIX extern const NabtoClientError NABTO_CLIENT_EC_COULD_BLOCK;
 NABTO_CLIENT_DECL_PREFIX extern const NabtoClientError NABTO_CLIENT_EC_UNAUTHORIZED;
 NABTO_CLIENT_DECL_PREFIX extern const NabtoClientError NABTO_CLIENT_EC_TOO_MANY_REQUESTS;
+NABTO_CLIENT_DECL_PREFIX extern const NabtoClientError NABTO_CLIENT_EC_UNKNOWN_PRODUCT_ID;
+NABTO_CLIENT_DECL_PREFIX extern const NabtoClientError NABTO_CLIENT_EC_UNKNOWN_DEVICE_ID;
+NABTO_CLIENT_DECL_PREFIX extern const NabtoClientError NABTO_CLIENT_EC_UNKNOWN_SERVER_KEY;
+NABTO_CLIENT_DECL_PREFIX extern const NabtoClientError NABTO_CLIENT_EC_CONNECTION_REFUSED;
+
 
 
 
@@ -269,6 +274,17 @@ NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_connection_free(NabtoClientConnection* connection);
 
 /**
+ * Stop outstanding connect or close on a connection.
+ *
+ * After stop has been called the connection should not be used
+ * any more.
+ *
+ * Stop can be used if the user cancels a connect/close request.
+ */
+NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
+nabto_client_connection_stop(NabtoClientConnection* connection);
+
+/**
  * Set options with a json encoded document.
  *
  * There are two ways to setup connection options. Either use the
@@ -286,14 +302,15 @@ nabto_client_connection_free(NabtoClientConnection* connection);
  * - ServerUrl: string
  * - ServerKey: string
  * - ServerJwtToken: string
+ * - ServerConnectToken: string
  * - AppName: string
  * - AppVersion: string
  *
  * Control the keep alive settings for the connection between
  * the client and the device.
- * - KeepAliveInterval: unsigned integer
- * - KeepAliveRetryInterval: unsigned integer
- * - KeepAliveMaxRetries: unsigned integer
+ * - KeepAliveInterval: unsigned integer in milliseconds, default 30000
+ * - KeepAliveRetryInterval: unsigned integer in milliseconds, default 2000
+ * - KeepAliveMaxRetries: unsigned integer default 15
  *
  * Control which connections features to use.
  *
@@ -343,7 +360,11 @@ NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_connection_set_options(NabtoClientConnection* connection, const char* json);
 
 /**
- * Get current representation of connection options
+ * Get current representation of connection options.
+ *
+ * This is generally the same set of options as the
+ * nabto_client_connection_set_options takes, except that the private
+ * key is not exposed.
  *
  * @param connection [in]  The connection.
  * @param json [out]  The json string representation of the current connection options. The string should be freed with nabto_client_string_free().
@@ -660,7 +681,6 @@ nabto_client_connection_get_local_channel_error_code(NabtoClientConnection* conn
  *
  * @return NABTO_CLIENT_EC_OK  if a remote relay channel was made.
  *         NABTO_CLIENT_EC_NONE  if remote relay was not enabled.
- *         NABTO_CLIENT_EC_NOT_FOUND  if the device is not known to the basestation.
  *         NABTO_CLIENT_EC_NOT_ATTACHED  if the device is not attached to the basestation
  *         NABTO_CLIENT_EC_TIMEOUT  if a timeout occured when connecting to the basestation.
  *         NABTO_CLIENT_EC_OPERATION_IN_PROGRESS  if the opening of the channel is still in progress
@@ -668,6 +688,10 @@ nabto_client_connection_get_local_channel_error_code(NabtoClientConnection* conn
  *         NABTO_CLIENT_EC_INVALID_STATE if required options is missing for the remote connection.
  *         NABTO_CLIENT_EC_TOKEN_REJECTED  if the basestation rejects access to a device based on either a valid formatted JWT token or a valid formatted SCT token.
  *         NABTO_CLIENT_EC_DNS  if dns could not be resolved.
+ *         NABTO_CLIENT_EC_UNKNOWN_SERVER_KEY if the server key is not known by the basestation.
+ *         NABTO_CLIENT_EC_UNKNOWN_PRODUCT_ID  if the product id is not known by the basestation.
+ *         NABTO_CLIENT_EC_UNKNOWN_DEVICE_ID  if the device id is not known by the basestation.
+ *         NABTO_CLIENT_EC_CONNECTION_REFUSED  if the client could not connect to the basestation.
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_connection_get_remote_channel_error_code(NabtoClientConnection* connection);
@@ -926,7 +950,7 @@ nabto_client_stream_abort(NabtoClientStream* stream);
  * @param connection [in]  The connection to make the CoAP request on, the connection needs to be kept alive until the request has been freed.
  * @param method [in]      The CoAP method designator string. One of: GET, POST, PUT, DELETE.
  * @param path [in]        The URI path element of the resource being requested. It has to start with a '/' character. The string "/" is the root path.
- * @returns The created CoAP context, NULL if it could not be created.
+ * @returns The created CoAP context, NULL if it could not be created (including if method is invalid).
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientCoap* NABTO_CLIENT_API
 nabto_client_coap_new(NabtoClientConnection* connection, const char* method, const char* path);
@@ -937,6 +961,14 @@ nabto_client_coap_new(NabtoClientConnection* connection, const char* method, con
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_coap_free(NabtoClientCoap* coap);
+
+/**
+ * Stop a coap request. This stops outstanding
+ * nabto_client_coap_execute calls. The request should not be used
+ * after it has been stopped.
+ */
+NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
+nabto_client_coap_stop(NabtoClientCoap* coap);
 
 /**
  * Set payload and content format for the payload.
@@ -1068,10 +1100,11 @@ NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_tcp_tunnel_open(NabtoClientTcpTunnel* tunnel, NabtoClientFuture* future, const char* service, uint16_t localPort);
 
 /**
- * Close a TCP tunnel. Detailed semantics TBD:
- * - TCP listener closed
- * - existing TCP client connections closed?
- * - what about pending stream data?
+ * Close a TCP tunnel.
+ *
+ * This closes the tcp tunnel.
+ *  - The listener is closed.
+ *  - Each ongoing tunnelled tcp connection is aborted.
  *
  * @param tunnel [in] the tunnel to close.
  * @param future [in] the future which resolves with the status of the operation.
@@ -1289,16 +1322,23 @@ NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_set_log_callback(NabtoClient* context, NabtoClientLogCallback callback, void* data);
 
 /**
+ * Set the SDK log level.
+ *
  * This needs to be set as early as possible to ensure modules are
  * initialised with the correct log settings.
  *
  * The default level is info.
  *
- * lower case string for the desired log level.
- * Possibilities:
- *   "error", "warn", "info", "debug", "trace",
+ * Lower case string for the desired log level.
  *
- *  Each severity level includes all the less severe levels.
+ * Allowed strings:
+ *
+ * Each severity level includes all the less severe levels.
+ *
+ * @param level: The log level: error, warn, info, debug or trace
+ *
+ * @return NABTO_CLIENT_EC_INVALID_ARGUMENT if invalid level, NABTO_CLIENT_EC_OK iff successfully
+ * set
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_set_log_level(NabtoClient* context, const char* level);
