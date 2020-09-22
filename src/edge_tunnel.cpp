@@ -23,6 +23,30 @@ enum {
 
 // TODO reconnect when connection is closed.
 
+std::string generalHelp = R"(This client application is designed to be used with a tcp tunnel
+device application. The functionality of the system is to enable
+tunnelling of TCP connections over the internet. The system allows a
+TCP client on the client side to connect to a TCP service on the
+device side. On the client side a TCP listener is created which
+listens for connections to localhost:<local-port>, when a TCP
+connection is made from an application on the client side to
+localhost:<local-port> the TCP connection is tunnelled to the service
+on the device.
+
+Example usage based on ssh:
+
+ 0. Run a tcp tunnel device on a system with an ssh server.
+ 1. Pair the client with the device. edge_tunnel_client --pair
+ 2. Create a tunnel to the SSH service on the device. edge_tunnel_client --service ssh --local-port <port>
+ 3. Connect to the SSH server through the tunnel. On the client side: ssh 127.0.0.1 -p <port>.
+    A SSH connection is now opened to the ssh server running on the device.
+)";
+
+void PrintGeneralHelp()
+{
+    std::cout << generalHelp << std::endl;
+}
+
 class MyLogger : public nabto::client::Logger
 {
  public:
@@ -277,6 +301,7 @@ int main(int argc, char** argv)
         if (result.count("help"))
         {
             std::cout << options.help() << std::endl;
+            PrintGeneralHelp();
             return 0;
         }
 
