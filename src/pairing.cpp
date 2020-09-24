@@ -27,7 +27,7 @@ static bool password_pair_and_write_config(std::shared_ptr<nabto::client::Connec
 // arg Character should be lowercase.
 static bool is_char_case_insensitive(char Subject, char Character) {
     return (Character >= 'a' && Character <= 'z') &&
-           Subject == Character || Subject == (Character - 32);
+           (Subject == Character || Subject == (Character - 32));
 }
 
 static std::string pairingModeAsString(PairingMode mode) {
