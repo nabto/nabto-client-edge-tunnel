@@ -10,6 +10,7 @@
 #include <iomanip>
 #include <algorithm>
 #include <memory>
+#include <list>
 
 #if defined(_WIN32)
 #include <direct.h>
@@ -29,7 +30,7 @@ static struct
     string ConfigFilePath;
     string StateFilePath;
     string KeyFilePath;
-    std::vector<DeviceInfo> Bookmarks;
+    std::map<int, DeviceInfo> Bookmarks;
 
     bool HasLoadedConfigFile;
     string ServerUrl;
@@ -147,7 +148,7 @@ void CommonInit()
         for(auto Device : StateContents["devices"])
         {
             DeviceInfo Info = Device.get<DeviceInfo>();
-            Configuration.Bookmarks.push_back(Info);
+            Configuration.Bookmarks[Configuration.Bookmarks.size()] = Info;
         }
     }
     catch (...)
@@ -251,7 +252,7 @@ bool WriteStateFile()
 {
     json BookmarksArray = json::array();
     for (auto Bookmark : Configuration.Bookmarks) {
-        BookmarksArray.push_back(Bookmark);
+        BookmarksArray.push_back(Bookmark.second);
     }
     json Contents = { {"devices", BookmarksArray} };
 
@@ -287,7 +288,7 @@ void AddPairedDeviceToBookmarks(DeviceInfo Info)
             return;
         }
     }
-    Configuration.Bookmarks.push_back(Info);
+    Configuration.Bookmarks[Configuration.Bookmarks.size()] = Info;
 }
 
 bool CreatePrivateKeyFile(std::shared_ptr<nabto::client::Context> Context)
@@ -319,11 +320,21 @@ void PrintBookmarks()
     std::cout << "The following devices are saved in your bookmarks:" << std::endl;
     for (auto Bookmark : Configuration.Bookmarks)
     {
-        std::cout << "[" << Index << "] ProductId: " << Bookmark.ProductID << " DeviceId: " << Bookmark.DeviceID << std::endl;
+        std::cout << "[" << Index << "] ProductId: " << Bookmark.second.ProductID << " DeviceId: " << Bookmark.second.DeviceID << std::endl;
         Index++;
     }
 }
 
+
+bool DeleteBookmark(const uint32_t& bookmark)
+{
+    if (Configuration.Bookmarks.find(bookmark) == Configuration.Bookmarks.end()) {
+        std::cerr << "The bookmark " << bookmark << " does not exists" << std::endl;
+        return false;
+    }
+    Configuration.Bookmarks.erase(bookmark);
+    return WriteStateFile();
+}
 
 bool makeDirectory(const std::string& directory)
 {

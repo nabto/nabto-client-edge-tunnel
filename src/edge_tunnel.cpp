@@ -116,7 +116,22 @@ class CloseListener : public nabto::client::ConnectionEventsCallback {
     std::promise<void> promise_;
 };
 
-
+void handleFingerprintMismatch(std::shared_ptr<nabto::client::Connection> connection, Configuration::DeviceInfo device)
+{
+    auto pairingInfo = getPairingInfo(connection);
+    if (pairingInfo) {
+        if (pairingInfo->ProductId != device.ProductID) {
+            std::cerr << "The product id of the connected device does not match the configured device in the client." << std::endl;
+        } else if (pairingInfo->DeviceId != device.DeviceID) {
+            std::cerr << "The device id of the connection device does not match the configured device in the client." << std::endl;
+        } else {
+            std::cerr << "The public key of the device does not match the public key in the pairing. Repair the device with the client." << std::endl;
+        }
+    } else {
+        // should not happen
+        std::cerr << "The configured public key does not match that of the connected device, repair the client with the device." << std::endl;
+    }
+}
 
 std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabto::client::Context> context, Configuration::DeviceInfo Device)
 {
@@ -167,7 +182,7 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
 
     try {
         if (connection->getDeviceFingerprintFullHex() != Device.DeviceFingerprint) {
-            std::cerr << "device fingerprint does not match the paired fingerprint." << std::endl;
+            handleFingerprintMismatch(connection, Device);
             return nullptr;
         }
     } catch (...) {
@@ -321,11 +336,13 @@ int main(int argc, char** argv)
     options.add_options("IAM")
         ("users", "List all users on selected device.")
         ("roles", "List roles available on device.")
-        ("user", "Get the user with the given id", cxxopts::value<std::string>())
-        ("add-role", "Add a role to a user on device.", cxxopts::value<std::string>())
-        ("remove-role", "Remove a role from a user on device.", cxxopts::value<std::string>())
-        ("role", "Used in conjunction with --add-role and --remove-role.", cxxopts::value<std::string>())
-        ("delete-user", "Delete a user on device.", cxxopts::value<std::string>())
+        ("user", "Specify the user for a command", cxxopts::value<std::string>())
+        ("role", "Specify a role for a command", cxxopts::value<std::string>())
+        ("get-me", "Get the user for the connection")
+        ("get-user", "Get a user")
+        ("add-role", "Add a role to a user on device.")
+        ("remove-role", "Remove a role from a user on device.")
+        ("delete-user", "Delete a user on device.")
         ;
 
     options.add_options("TCP Tunnelling")
@@ -370,6 +387,15 @@ int main(int argc, char** argv)
             return 0;
         }
 
+        if (result.count("delete-bookmark")) {
+            if (!result.count("bookmark")) {
+                std::cerr << "The argument --bookmark is required when deleting a bookmark." << std::endl;
+            } else {
+                Configuration::DeleteBookmark(result["bookmark"].as<uint32_t>());
+            }
+            return 0;
+        }
+
         auto context = nabto::client::Context::create();
 
         context->setLogger(std::make_shared<MyLogger>());
@@ -394,7 +420,7 @@ int main(int argc, char** argv)
             return 0;
         }
         else if (result.count("pair-direct")) {
-            if (!direct_pair(context, userName, result["pair-direct"].as<std::string>(), "")) {
+            if (!direct_pair(context, userName, result["pair-direct"].as<std::string>())) {
                 return 1;
             }
             return 0;
@@ -406,8 +432,8 @@ int main(int argc, char** argv)
                  result.count("roles") ||
                  result.count("add-role") ||
                  result.count("remove-role") ||
-                 result.count("role") ||
-                 result.count("delete-user"))
+                 result.count("delete-user") ||
+                 result.count("get-user"))
         {
             // For all these commands we need a paired device.
             uint32_t SelectedBookmark = result["bookmark"].as<uint32_t>();
@@ -436,35 +462,37 @@ int main(int argc, char** argv)
             } else if (result.count("service")) {
                 status = tcptunnel(connection, services, *Device);
             } else if (result.count("users")) {
-                status = IAM::list_users(connection, *Device);
+                status = IAM::list_users(connection);
             } else if (result.count("roles")) {
-                status = IAM::list_roles(connection, *Device);
+                status = IAM::list_roles(connection);
             } else if (result.count("add-role")) {
-                if (result.count("role")) {
-                    status = IAM::add_role_to_user(connection, result["add-role"].as<std::string>(), result["role"].as<std::string>(), *Device);
+                if (!result.count("role")) {
+                    std::cerr << "--add-role requires the --role parameter." << std::endl;
+                } else if (!result.count("user")) {
+                    std::cerr << "--add-role requires the --user parameter." << std::endl;
                 } else {
-                    std::cout
-                    << "You've used the --add-role option without specifying which role to add.\n"
-                    << "Use --role to specify a role that you want to add to this user."
-                    << std::endl;
+                    status = IAM::add_role_to_user(connection, result["user"].as<std::string>(), result["role"].as<std::string>());
                 }
             } else if (result.count("remove-role")) {
-                if (result.count("role")) {
-                    status = IAM::remove_role_from_user(connection, result["remove-role"].as<std::string>(), result["role"].as<std::string>(), *Device);
+                if (!result.count("role")) {
+                    std::cerr << "--remove-role requires the --role parameter." << std::endl;
+                } else if (!result.count("user")) {
+                    std::cerr << "--remove-role requires the --user parameter." << std::endl;
                 } else {
-                    std::cout
-                    << "You've used the --remove-role option without specifying which role to remove.\n"
-                    << "Use the --role option to specify a role that you want to remove from this user."
-                    << std::endl;
+                    status = IAM::remove_role_from_user(connection, result["user"].as<std::string>(), result["role"].as<std::string>());
                 }
-            } else if (result.count("role")) {
-                std::cout
-                << "You've used the --role option without specifying a user.\n"
-                << "Use --add-role to specify a user that you want to add the role to."
-                << "Use --remove-role to specify a user that you want to remove the role from."
-                << std::endl;
             } else if (result.count("delete-user")) {
-                status = IAM::delete_user(connection, result["delete-user"].as<std::string>(), *Device);
+                if (!result.count("user")) {
+                    std::cerr << "--delete-user requires the --user parameter." << std::endl;
+                } else {
+                    status = IAM::delete_user(connection, result["user"].as<std::string>());
+                }
+            } else if (result.count("get-user")) {
+                if (!result.count("user")) {
+                    std::cerr << "--get-user requires the --user parameter." << std::endl;
+                } else {
+                    status = IAM::get_user(connection, result["user"].as<std::string>());
+                }
             }
 
             connection->close()->waitForResult();

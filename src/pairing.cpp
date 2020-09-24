@@ -10,19 +10,10 @@
 using string = std::string;
 using json = nlohmann::json;
 
-const static int CONTENT_FORMAT_APPLICATION_CBOR = 60; // rfc 7059
-enum class PairingMode {
-    NONE,
-    BUTTON,
-    PASSWORD,
-    LOCAL
-};
-
-
 static bool get_client_settings(std::shared_ptr<nabto::client::Connection> connection, Configuration::DeviceInfo& Device);
 static bool write_config(Configuration::DeviceInfo& Device);
-static bool local_pair_and_write_config(std::shared_ptr<nabto::client::Connection> connection, Configuration::DeviceInfo& Device, const std::string& UserName);
-static bool password_pair_and_write_config(std::shared_ptr<nabto::client::Connection> connection, Configuration::DeviceInfo& Device, const std::string& UserName, const std::string& pairingPassword);
+static bool local_pair_and_write_config(std::shared_ptr<nabto::client::Connection> connection, Configuration::DeviceInfo& Device, const std::string& userName);
+static bool password_pair_and_write_config(std::shared_ptr<nabto::client::Connection> connection, Configuration::DeviceInfo& Device, const std::string& userName, const std::string& pairingPassword);
 
 // arg Character should be lowercase.
 static bool is_char_case_insensitive(char Subject, char Character) {
@@ -44,68 +35,23 @@ static std::string pairingModeAsString(PairingMode mode) {
 static PairingMode get_pairing_mode(std::shared_ptr<nabto::client::Connection> connection)
 {
 
-    std::vector<PairingMode> supportedModes;
-
-    auto coap = connection->createCoap("GET", "/pairing");
-    coap->execute()->waitForResult();
-    if (coap->getResponseStatusCode() != 205) {
-        std::string reason;
-        auto buffer = coap->getResponsePayload();
-        reason = std::string(reinterpret_cast<char*>(buffer.data()), buffer.size());
-        std::cout << "Could not pair with the device status: " << coap->getResponseStatusCode() << " " << reason << std::endl;
-        return PairingMode::NONE;
-    }
-    {
-        auto buffer = coap->getResponsePayload();
-        auto j = nlohmann::json::from_cbor(buffer);
-        auto modes = j["Modes"];
-        if (!modes.is_array()) {
-            std::cout << "Invalid response" << std::endl;
-            exit(1);
+    std::unique_ptr<PairingInfo> pi = getPairingInfo(connection);
+    if (pi) {
+        if (pi->Modes.count(PairingMode::LOCAL)) {
+            return PairingMode::LOCAL;
         }
-        for (auto mode : modes) {
-            std::string stringMode = mode.get<std::string>();
-            if (stringMode == "Button") {
-                supportedModes.push_back(PairingMode::BUTTON);
-            } else if (stringMode == "Password") {
-                supportedModes.push_back(PairingMode::PASSWORD);
-            } else if (stringMode == "Local") {
-                supportedModes.push_back(PairingMode::LOCAL);
-            }
+
+        if (pi->Modes.count(PairingMode::PASSWORD)) {
+            return PairingMode::PASSWORD;
+        }
+
+        if (pi->Modes.count(PairingMode::BUTTON)) {
+            return PairingMode::BUTTON;
         }
     }
 
-    if (supportedModes.size() == 0) {
-        std::cout << "cannot pair with the device as there is no supported pairing modes" << std::endl;
-        return PairingMode::NONE;
-    }
-
-    if (supportedModes.size() == 1) {
-        return supportedModes[0];
-    }
-
-    std::cout << "Choose a pairing method " << std::endl;
-    for (size_t i = 0; i < supportedModes.size(); i++) {
-        std::cout << "[" << i << "] " << pairingModeAsString(supportedModes[i]) << std::endl;
-    }
-
-    int pairingChoice = -1;
-    {
-        char input;
-        std::cin >> input;
-        if (input == 'q') {
-            std::cout << "Quitting" << std::endl;
-            exit(1);
-        }
-
-        pairingChoice = input - '0';
-    }
-    if (pairingChoice < 0 || pairingChoice >= (int)supportedModes.size()) {
-        std::cout << "Invalid choice" << std::endl;
-        exit(1);
-    }
-
-    return supportedModes[pairingChoice];
+    std::cerr << "cannot pair with the device as there is no supported pairing modes" << std::endl;
+    return PairingMode::NONE;
 }
 
 static bool button_pair(std::shared_ptr<nabto::client::Connection> connection, const std::string& name)
@@ -148,7 +94,6 @@ static bool password_pair_password(std::shared_ptr<nabto::client::Connection> co
 {
     nlohmann::json root;
     root["Name"] = name;
-
 
     try {
         connection->passwordAuthenticate("", password)->waitForResult();
@@ -261,43 +206,34 @@ bool interactive_pair(std::shared_ptr<nabto::client::Context> Context, const str
     DeviceConfig.DeviceFingerprint = connection->getDeviceFingerprintFullHex();
     std::cout << "Connected to the device" << std::endl;
 
-    PairingMode mode = get_pairing_mode(connection);
-    if (mode == PairingMode::NONE) {
+    auto pi = getPairingInfo(connection);
+    if (!pi) {
+        std::cerr << "Cannot Get CoAP /pairing" << std::endl;
         return false;
-    } if (mode == PairingMode::BUTTON) {
-        if (!button_pair(connection, userName)) {
+    }
+    PairingMode mode = get_pairing_mode(connection);
+    if (pi->Modes.count(PairingMode::LOCAL)) {
+         if (!local_pair(connection, userName)) {
             return false;
         }
-    } else if (mode == PairingMode::PASSWORD) {
+    } else if (pi->Modes.count(PairingMode::PASSWORD)) {
         if (!password_pair(connection, userName)) {
             return false;
         }
-    } else if (mode == PairingMode::LOCAL) {
-        if (!local_pair(connection, userName)) {
+    } else if (pi->Modes.count(PairingMode::BUTTON)) {
+        if (!button_pair(connection, userName)) {
             return false;
         }
-    }
-
-    auto coap = connection->createCoap("GET", "/pairing/client-settings");
-    coap->execute()->waitForResult();
-    if (coap->getResponseStatusCode() != 205) {
-        std::string reason;
-        auto buffer = coap->getResponsePayload();
-        reason = std::string(reinterpret_cast<char*>(buffer.data()), buffer.size());
-        std::cout << "Could not get client settings: " << coap->getResponseStatusCode() << " " << reason << std::endl;
+    } else {
+        std::cerr << "No supported pairing modes" << std::endl;
         return false;
     }
 
-    auto buffer = coap->getResponsePayload();
-    DeviceConfig.ServerConnectToken = json::from_cbor(buffer)["ServerConnectToken"].get<std::string>();
-    std::cout << "Paired with the device, writing configuration to the configuration file" << std::endl;
-
-    Configuration::AddPairedDeviceToBookmarks(DeviceConfig);
-    if (!Configuration::WriteStateFile()) {
-        std::cerr << "Failed to write config to " << Configuration::GetStateFilePath() << std::endl;
+    if (!get_client_settings(connection, DeviceConfig)) {
         return false;
-    };
-    return true;
+    }
+
+    return write_config(DeviceConfig);
 }
 
 static std::vector<std::string> split(const std::string& s, char delimiter)
@@ -390,6 +326,34 @@ bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userN
 
     std::cout << "Connected to device ProductId: " <<  productId << " DeviceId: " << deviceId << std::endl;
 
+    std::unique_ptr<PairingInfo> pi = getPairingInfo(connection);
+    if (!pi) {
+        std::cerr << "CoAP GET /pairing failed, pairing failed" << std::endl;
+    }
+
+    if (pi->Modes.count(PairingMode::LOCAL)) {
+        if(!local_pair(connection, userName)) {
+            return false;
+        }
+    } else if (pi->Modes.count(PairingMode::PASSWORD)) {
+        if (!password_pair(connection, userName)) {
+            return false;
+        }
+    } else if (pi->Modes.count(PairingMode::BUTTON)) {
+        if (!button_pair(connection, userName)) {
+            return false;
+        }
+    } else {
+        std::cerr << "No supported pairing mode" << std::endl;
+        return false;
+    }
+
+    if (!get_client_settings(connection, Device)) {
+        return false;
+    }
+
+    return write_config(Device);
+
     if (!pairingPassword.empty()) {
         return password_pair_and_write_config(connection, Device, userName, pairingPassword);
     } else {
@@ -397,8 +361,7 @@ bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userN
     }
 }
 
-
-bool direct_pair(std::shared_ptr<nabto::client::Context> Context, const std::string& UserName, const std::string& host, const std::string& pairingPassword)
+bool direct_pair(std::shared_ptr<nabto::client::Context> Context, const std::string& userName, const std::string& host)
 {
     auto connection = Context->createConnection();
     string privateKey;
@@ -442,28 +405,28 @@ bool direct_pair(std::shared_ptr<nabto::client::Context> Context, const std::str
     Configuration::DeviceInfo Device;
     Device.DirectCandidate = host;
 
-    if (!pairingPassword.empty()) {
-        return password_pair_and_write_config(connection, Device, UserName, pairingPassword);
+    std::unique_ptr<PairingInfo> pi = getPairingInfo(connection);
+    if (!pi) {
+        std::cerr << "CoAP GET /pairing failed, pairing failed" << std::endl;
+    }
+
+    Device.ProductID = pi->ProductId;
+    Device.DeviceID = pi->DeviceId;
+
+    if (pi->Modes.count(PairingMode::LOCAL)) {
+        if(!local_pair(connection, userName)) {
+            return false;
+        }
+    } else if (pi->Modes.count(PairingMode::PASSWORD)) {
+        if (!password_pair(connection, userName)) {
+            return false;
+        }
+    } else if (pi->Modes.count(PairingMode::BUTTON)) {
+        if (!button_pair(connection, userName)) {
+            return false;
+        }
     } else {
-        return local_pair_and_write_config(connection, Device, UserName);
-    }
-}
-
-bool password_pair_and_write_config(std::shared_ptr<nabto::client::Connection> connection, Configuration::DeviceInfo& Device, const std::string& UserName, const std::string& pairingPassword)
-{
-    if (!password_pair_password(connection, UserName, pairingPassword)) {
-        return false;
-    }
-
-    if (!get_client_settings(connection, Device)) {
-        return false;
-    }
-    return write_config(Device);
-}
-
-bool local_pair_and_write_config(std::shared_ptr<nabto::client::Connection> connection, Configuration::DeviceInfo& Device, const std::string& UserName)
-{
-    if(!local_pair(connection, UserName)) {
+        std::cerr << "No supported pairing mode" << std::endl;
         return false;
     }
 
@@ -473,7 +436,6 @@ bool local_pair_and_write_config(std::shared_ptr<nabto::client::Connection> conn
 
     return write_config(Device);
 }
-
 
 bool get_client_settings(std::shared_ptr<nabto::client::Connection> connection, Configuration::DeviceInfo& Device)
 {
@@ -489,15 +451,9 @@ bool get_client_settings(std::shared_ptr<nabto::client::Connection> connection, 
         return false;
     }
 
-    auto buffer =coap->getResponsePayload();
+    auto buffer = coap->getResponsePayload();
     auto j = json::from_cbor(buffer);
     Device.ServerConnectToken = j["ServerConnectToken"].get<string>();
-    if (Device.ProductID.empty()) {
-        Device.ProductID = j["ProductId"].get<string>();
-    }
-    if (Device.DeviceID.empty()) {
-        Device.DeviceID = j["DeviceId"].get<std::string>();
-    }
     return true;
 }
 
@@ -510,4 +466,70 @@ bool write_config(Configuration::DeviceInfo& Device)
     }
     std::cout << "Paired with the device and wrote state to file " << Configuration::GetStateFilePath() << std::endl;
     return true;
+}
+
+
+void from_json(const json& j, PairingInfo& pi)
+{
+    try {
+        j.at("ProductId").get_to(pi.ProductId);
+    } catch (std::exception& e) {}
+
+    try {
+        j.at("DeviceId").get_to(pi.DeviceId);
+    } catch (std::exception& e) {}
+
+    try {
+        j.at("AppName").get_to(pi.AppName);
+    } catch (std::exception& e) {}
+
+    try {
+        j.at("AppVersion").get_to(pi.AppVersion);
+    } catch (std::exception& e) {}
+
+    try {
+        j.at("NabtoVersion").get_to(pi.NabtoVersion);
+    } catch (std::exception& e) {}
+
+    try {
+        std::vector<std::string> modes = j["Modes"].get<std::vector<std::string> >();
+        for (auto m : modes) {
+            if (m == "Local") {
+                pi.Modes.insert(PairingMode::LOCAL);
+            } else if (m == "Password") {
+                pi.Modes.insert(PairingMode::PASSWORD);
+            } else if (m == "Button") {
+                pi.Modes.insert(PairingMode::BUTTON);
+            }
+        }
+    } catch (std::exception& e) {}
+}
+
+std::unique_ptr<PairingInfo> getPairingInfo(std::shared_ptr<nabto::client::Connection> connection)
+{
+    auto coap = connection->createCoap("GET", "/pairing");
+    try {
+        coap->execute()->waitForResult();
+    } catch (nabto::client::NabtoException& e) {
+        // TODO
+    }
+
+    if (coap->getResponseStatusCode() != 205) {
+        std::cerr << "CoAP GET /pairing returned non ok status " << coap->getResponseStatusCode() << std::endl;
+        return nullptr;
+    }
+
+    if (coap->getResponseContentFormat() != CONTENT_FORMAT_APPLICATION_CBOR) {
+        std::cerr << "CoAP GET /pairing returned an unsupported content format " << coap->getResponseContentFormat() << std::endl;
+        return nullptr;
+    }
+
+    std::vector<uint8_t> payload = coap->getResponsePayload();
+    try {
+        nlohmann::json root = nlohmann::json::from_cbor(payload);
+        return std::make_unique<PairingInfo>(root.get<PairingInfo>());
+    } catch(std::exception& e) {
+        std::cerr << "CoAP GET /pairing returned a non conformant response" << std::endl;
+        return nullptr;
+    }
 }
