@@ -120,8 +120,8 @@ class CloseListener : public nabto::client::ConnectionEventsCallback {
 
 std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabto::client::Context> context, Configuration::DeviceInfo Device)
 {
-    Configuration::ConfigInfo Config;
-    if (!Configuration::GetConfigInfo(&Config)) {
+    auto Config = Configuration::GetConfigInfo();
+    if (!Config) {
         printMissingClientConfig(Configuration::GetConfigFilePath());
         return nullptr;
     }
@@ -143,14 +143,11 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
     connection->setPrivateKey(privateKey);
 
 
-    if (Config.ServerUrl) {
-        connection->setServerUrl(Config.ServerUrl);
+    if (!Config->getServerUrl().empty()) {
+        connection->setServerUrl(Config->getServerUrl());
     }
-    else
-    {
-        // TODO(as): ServerUrl was not found.
-    }
-    connection->setServerKey(Config.ServerKey);
+
+    connection->setServerKey(Config->getServerKey());
     connection->setServerConnectToken(Device.ServerConnectToken);
 
     try {
@@ -352,14 +349,20 @@ int main(int argc, char** argv)
             return 0;
         }
 
-        if (result.count("home"))
-        {
-            Configuration::InitializeWithDirectory(result["home"].as<std::string>());
+        if (result.count("home")) {
+            Configuration::makeDirectories(result["home"].as<std::string>());
+        } else {
+            Configuration::makeDirectories("");
         }
-        else
-        {
-            Configuration::Initialize();
+
+        std::string homeDir;
+        if (result.count("home")) {
+            homeDir = result["home"].as<std::string>();
+        } else {
+            homeDir = Configuration::getDefaultHomeDir();
         }
+
+        Configuration::InitializeWithDirectory(homeDir);
 
         if (result.count("bookmarks"))
         {

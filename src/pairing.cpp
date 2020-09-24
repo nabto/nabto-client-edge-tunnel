@@ -344,9 +344,8 @@ bool string_pair(std::shared_ptr<nabto::client::Context> ctx, const string& user
 bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userName, const string& productId, const string& deviceId, const string& pairingPassword, const string& serverConnectToken)
 {
     Configuration::DeviceInfo Device;
-    Configuration::ConfigInfo Config;
-    if (!Configuration::GetConfigInfo(&Config)) {
-        // TODO(as): print error to the user here.
+    auto Config = Configuration::GetConfigInfo();
+    if (!Config) {
         return false;
     }
 
@@ -361,13 +360,13 @@ bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userN
 
     connection->setPrivateKey(privateKey);
 
-    if (Config.ServerUrl) {
-        connection->setServerUrl(string(Config.ServerUrl));
+    if (!Config->getServerUrl().empty()) {
+        connection->setServerUrl(Config->getServerUrl());
     }
     else {
         // TODO(as): No server url found.
     }
-    connection->setServerKey(string(Config.ServerKey));
+    connection->setServerKey(Config->getServerKey());
     connection->setServerConnectToken(serverConnectToken);
     json options;
 
