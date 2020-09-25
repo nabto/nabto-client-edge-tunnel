@@ -121,9 +121,9 @@ void handleFingerprintMismatch(std::shared_ptr<nabto::client::Connection> connec
     auto pairingInfo = getPairingInfo(connection);
     if (pairingInfo) {
         if (pairingInfo->ProductId != device.ProductID) {
-            std::cerr << "The product id of the connected device does not match the configured device in the client." << std::endl;
+            std::cerr << "The Product ID of the connected device (" <<  pairingInfo->ProductId << ") does not match the Product ID for the bookmark " << device.GetFriendlyName() << std::endl;
         } else if (pairingInfo->DeviceId != device.DeviceID) {
-            std::cerr << "The device id of the connection device does not match the configured device in the client." << std::endl;
+            std::cerr << "The Device ID of the connected device (" <<  pairingInfo->DeviceId << ") does not match the Device ID for the bookmark " << device.GetFriendlyName() << std::endl;
         } else {
             std::cerr << "The public key of the device does not match the public key in the pairing. Repair the device with the client." << std::endl;
         }

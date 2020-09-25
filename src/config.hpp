@@ -69,7 +69,8 @@ const char* GetStateFilePath();
 bool WriteStateFile();
 std::unique_ptr<DeviceInfo> GetPairedDevice(int Index);
 bool HasNoBookmarks();
-void AddPairedDeviceToBookmarks(DeviceInfo Info);
+// insert info into bookmarks, and set the index into the info
+void AddPairedDeviceToBookmarks(DeviceInfo& Info);
 bool GetPrivateKey(std::shared_ptr<nabto::client::Context> Context, std::string& PrivateKey);
 void PrintBookmarks();
 bool DeleteBookmark(const uint32_t& bookmark);

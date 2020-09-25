@@ -460,11 +460,15 @@ bool get_client_settings(std::shared_ptr<nabto::client::Connection> connection, 
 bool write_config(Configuration::DeviceInfo& Device)
 {
     Configuration::AddPairedDeviceToBookmarks(Device);
+
+    std::cout << "The device " << Device.GetFriendlyName() << " has been set into the bookmarks as index " << Device.Index << std::endl;
+
+
+
     if (!Configuration::WriteStateFile()) {
         std::cerr << "Failed to write state to " << Configuration::GetStateFilePath() << std::endl;
         return false;
     }
-    std::cout << "Paired with the device and wrote state to file " << Configuration::GetStateFilePath() << std::endl;
     return true;
 }
 

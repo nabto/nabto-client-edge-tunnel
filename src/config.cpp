@@ -278,17 +278,20 @@ bool HasNoBookmarks()
     return Configuration.Bookmarks.empty();
 }
 
-void AddPairedDeviceToBookmarks(DeviceInfo Info)
+void AddPairedDeviceToBookmarks(DeviceInfo& Info)
 {
-    for (size_t Index = 0; Index < Configuration.Bookmarks.size(); ++Index)
-    {
-        if (Configuration.Bookmarks[Index].DeviceID == Info.DeviceID)
-        {
-            Configuration.Bookmarks[Index] = Info;
+    for (auto b : Configuration.Bookmarks) {
+        if (b.second.DeviceID == Info.DeviceID && b.second.ProductID == Info.ProductID) {
+            Configuration.Bookmarks[b.first] = Info;
+            Info.Index = b.first;
             return;
         }
     }
-    Configuration.Bookmarks[Configuration.Bookmarks.size()] = Info;
+
+    size_t index = Configuration.Bookmarks.size();
+    Configuration.Bookmarks[index] = Info;
+    Info.Index = index;
+    return;
 }
 
 bool CreatePrivateKeyFile(std::shared_ptr<nabto::client::Context> Context)
