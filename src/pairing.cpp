@@ -12,8 +12,6 @@ using json = nlohmann::json;
 
 static bool get_client_settings(std::shared_ptr<nabto::client::Connection> connection, Configuration::DeviceInfo& Device);
 static bool write_config(Configuration::DeviceInfo& Device);
-static bool local_pair_and_write_config(std::shared_ptr<nabto::client::Connection> connection, Configuration::DeviceInfo& Device, const std::string& userName);
-static bool password_pair_and_write_config(std::shared_ptr<nabto::client::Connection> connection, Configuration::DeviceInfo& Device, const std::string& userName, const std::string& pairingPassword);
 
 // arg Character should be lowercase.
 static bool is_char_case_insensitive(char Subject, char Character) {
@@ -353,12 +351,6 @@ bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userN
     }
 
     return write_config(Device);
-
-    if (!pairingPassword.empty()) {
-        return password_pair_and_write_config(connection, Device, userName, pairingPassword);
-    } else {
-        return local_pair_and_write_config(connection, Device, userName);
-    }
 }
 
 bool direct_pair(std::shared_ptr<nabto::client::Context> Context, const std::string& userName, const std::string& host)
