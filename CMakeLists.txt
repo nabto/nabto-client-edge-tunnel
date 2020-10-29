@@ -7,18 +7,22 @@ project(nabto-client-edge-tunnel)
 find_package(Threads)
 
 include_directories(include .)
-add_subdirectory(nabto_cpp_wrapper)
+
 
 if(WIN32)
     link_directories(${CMAKE_SOURCE_DIR}/lib/windows)
 elseif(UNIX AND NOT APPLE)
-    link_directories(${CMAKE_SOURCE_DIR}/lib/linux)
-    set(CMAKE_SKIP_BUILD_RPATH FALSE)
-    set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
+    add_library(nabto_client SHARED IMPORTED)
+    set_target_properties( nabto_client PROPERTIES IMPORTED_LOCATION ${CMAKE_CURRENT_SOURCE_DIR}/lib/linux/libnabto_client.so)
+    #link_directories(${CMAKE_SOURCE_DIR}/lib/linux)
+    #set(CMAKE_SKIP_BUILD_RPATH FALSE)
+    #set(CMAKE_BUILD_WITH_INSTALL_RPATH TRUE)
     set(CMAKE_INSTALL_RPATH $ORIGIN)
 elseif(APPLE)
     link_directories(${CMAKE_SOURCE_DIR}/lib/macos)
 endif()
+
+add_subdirectory(nabto_cpp_wrapper)
 
 set(src
     src/edge_tunnel.cpp
