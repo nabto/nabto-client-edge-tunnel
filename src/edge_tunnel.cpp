@@ -336,12 +336,11 @@ int main(int argc, char** argv)
     options.add_options("IAM")
         ("users", "List all users on selected device.")
         ("roles", "List roles available on device.")
-        ("user", "Specify the user for a command", cxxopts::value<std::string>())
+        ("userid", "Specify the user for a command", cxxopts::value<std::string>())
         ("role", "Specify a role for a command", cxxopts::value<std::string>())
-        ("get-me", "Get the user for the connection")
-        ("get-user", "Get a user")
-        ("add-role", "Add a role to a user on device.")
-        ("remove-role", "Remove a role from a user on device.")
+        ("get-me", "Get the user associated with the current connection.")
+        ("get-user", "Get a user.")
+        ("set-role", "Assign a role to a user.")
         ("delete-user", "Delete a user on device.")
         ;
 
@@ -430,10 +429,11 @@ int main(int argc, char** argv)
                  result.count("service") ||
                  result.count("users") ||
                  result.count("roles") ||
-                 result.count("add-role") ||
-                 result.count("remove-role") ||
+                 result.count("set-role") ||
                  result.count("delete-user") ||
-                 result.count("get-user"))
+                 result.count("get-user") ||
+                 result.count("get-me"))
+
         {
             // For all these commands we need a paired device.
             uint32_t SelectedBookmark = result["bookmark"].as<uint32_t>();
@@ -465,34 +465,28 @@ int main(int argc, char** argv)
                 status = IAM::list_users(connection);
             } else if (result.count("roles")) {
                 status = IAM::list_roles(connection);
-            } else if (result.count("add-role")) {
+            } else if (result.count("set-role")) {
                 if (!result.count("role")) {
-                    std::cerr << "--add-role requires the --role parameter." << std::endl;
-                } else if (!result.count("user")) {
-                    std::cerr << "--add-role requires the --user parameter." << std::endl;
+                    std::cerr << "--set-role requires the --role parameter." << std::endl;
+                } else if (!result.count("userid")) {
+                    std::cerr << "--set-role requires the --userid parameter." << std::endl;
                 } else {
-                    status = IAM::add_role_to_user(connection, result["user"].as<std::string>(), result["role"].as<std::string>());
-                }
-            } else if (result.count("remove-role")) {
-                if (!result.count("role")) {
-                    std::cerr << "--remove-role requires the --role parameter." << std::endl;
-                } else if (!result.count("user")) {
-                    std::cerr << "--remove-role requires the --user parameter." << std::endl;
-                } else {
-                    status = IAM::remove_role_from_user(connection, result["user"].as<std::string>(), result["role"].as<std::string>());
+                    status = IAM::set_role(connection, result["userid"].as<std::string>(), result["role"].as<std::string>());
                 }
             } else if (result.count("delete-user")) {
-                if (!result.count("user")) {
-                    std::cerr << "--delete-user requires the --user parameter." << std::endl;
+                if (!result.count("userid")) {
+                    std::cerr << "--delete-user requires the --userid parameter." << std::endl;
                 } else {
-                    status = IAM::delete_user(connection, result["user"].as<std::string>());
+                    status = IAM::delete_user(connection, result["userid"].as<std::string>());
                 }
             } else if (result.count("get-user")) {
-                if (!result.count("user")) {
-                    std::cerr << "--get-user requires the --user parameter." << std::endl;
+                if (!result.count("userid")) {
+                    std::cerr << "--get-user requires the --userid parameter." << std::endl;
                 } else {
-                    status = IAM::get_user(connection, result["user"].as<std::string>());
+                    status = IAM::get_user(connection, result["userid"].as<std::string>());
                 }
+            } else if (result.count("get-me")) {
+                status = IAM::get_me(connection);
             }
 
             connection->close()->waitForResult();

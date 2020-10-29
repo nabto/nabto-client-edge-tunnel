@@ -54,7 +54,7 @@ static PairingMode get_pairing_mode(std::shared_ptr<nabto::client::Connection> c
 
 static bool button_pair(std::shared_ptr<nabto::client::Connection> connection, const std::string& name)
 {
-    auto coap = connection->createCoap("POST", "/pairing/button");
+    auto coap = connection->createCoap("POST", "/iam/pairing/button");
     std::cout << "Waiting for the user to press a button on the device." << std::endl;
     nlohmann::json root;
     root["Name"] = name;
@@ -75,7 +75,7 @@ static bool local_pair(std::shared_ptr<nabto::client::Connection> connection, co
     nlohmann::json root;
     root["Name"] = name;
 
-    auto coap = connection->createCoap("POST", "/pairing/local");
+    auto coap = connection->createCoap("POST", "/iam/pairing/local");
     coap->setRequestPayload(CONTENT_FORMAT_APPLICATION_CBOR, nlohmann::json::to_cbor(root));
     coap->execute()->waitForResult();
     if (coap->getResponseStatusCode() != 201) {
@@ -100,7 +100,7 @@ static bool password_pair_password(std::shared_ptr<nabto::client::Connection> co
         return false;
     }
 
-    auto coap = connection->createCoap("POST", "/pairing/password");
+    auto coap = connection->createCoap("POST", "/iam/pairing/password");
     coap->setRequestPayload(CONTENT_FORMAT_APPLICATION_CBOR, nlohmann::json::to_cbor(root));
     coap->execute()->waitForResult();
     if (coap->getResponseStatusCode() != 201) {
@@ -326,7 +326,7 @@ bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userN
 
     std::unique_ptr<PairingInfo> pi = getPairingInfo(connection);
     if (!pi) {
-        std::cerr << "CoAP GET /pairing failed, pairing failed" << std::endl;
+        std::cerr << "CoAP GET /iam/pairing failed, pairing failed" << std::endl;
     }
 
     if (pi->Modes.count(PairingMode::LOCAL)) {
@@ -433,7 +433,7 @@ bool get_client_settings(std::shared_ptr<nabto::client::Connection> connection, 
 {
     Device.DeviceFingerprint = connection->getDeviceFingerprintFullHex();
 
-    auto coap = connection->createCoap("GET", "/pairing/client-settings");
+    auto coap = connection->createCoap("GET", "/iam/pairing/client-settings");
     coap->execute()->waitForResult();
     if (coap->getResponseStatusCode() != 205) {
         std::string reason;
@@ -503,7 +503,7 @@ void from_json(const json& j, PairingInfo& pi)
 
 std::unique_ptr<PairingInfo> getPairingInfo(std::shared_ptr<nabto::client::Connection> connection)
 {
-    auto coap = connection->createCoap("GET", "/pairing");
+    auto coap = connection->createCoap("GET", "/iam/pairing");
     try {
         coap->execute()->waitForResult();
     } catch (nabto::client::NabtoException& e) {
@@ -511,12 +511,12 @@ std::unique_ptr<PairingInfo> getPairingInfo(std::shared_ptr<nabto::client::Conne
     }
 
     if (coap->getResponseStatusCode() != 205) {
-        std::cerr << "CoAP GET /pairing returned non ok status " << coap->getResponseStatusCode() << std::endl;
+        std::cerr << "CoAP GET /iam/pairing returned non ok status " << coap->getResponseStatusCode() << std::endl;
         return nullptr;
     }
 
     if (coap->getResponseContentFormat() != CONTENT_FORMAT_APPLICATION_CBOR) {
-        std::cerr << "CoAP GET /pairing returned an unsupported content format " << coap->getResponseContentFormat() << std::endl;
+        std::cerr << "CoAP GET /iam/pairing returned an unsupported content format " << coap->getResponseContentFormat() << std::endl;
         return nullptr;
     }
 
@@ -525,7 +525,7 @@ std::unique_ptr<PairingInfo> getPairingInfo(std::shared_ptr<nabto::client::Conne
         nlohmann::json root = nlohmann::json::from_cbor(payload);
         return std::make_unique<PairingInfo>(root.get<PairingInfo>());
     } catch(std::exception& e) {
-        std::cerr << "CoAP GET /pairing returned a non conformant response" << std::endl;
+        std::cerr << "CoAP GET /iam/pairing returned a non conformant response" << std::endl;
         return nullptr;
     }
 }

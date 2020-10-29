@@ -143,6 +143,52 @@ bool get_user(std::shared_ptr<nabto::client::Connection> connection, const std::
 }
 
 
+bool get_me(std::shared_ptr<nabto::client::Connection> connection)
+{
+    bool result = false;
+    std::string path = "/iam/me";
+    auto coap = connection->createCoap("GET", path);
+
+    try
+    {
+        coap->execute()->waitForResult();
+        int responseCode = coap->getResponseStatusCode();
+        switch (responseCode)
+        {
+            case 205:
+            {
+                auto cbor = coap->getResponsePayload();
+
+                json user = json::from_cbor(cbor);
+                std::cout << user.dump(4) << std::endl;
+                result = true;
+                break;
+            }
+
+            case 403:
+            {
+                std::cout
+                    << "The request to (" << path << ")"
+                    << " was denied." << std::endl;
+                print_error_access_denied();
+                break;
+            }
+
+            default:
+            {
+                print_coap_error(path, responseCode);
+                break;
+            }
+        }
+    }
+    catch (...)
+    {
+        std::cerr << "Cannot get the user which is associated with the connection " << std::endl;
+    }
+    return result;
+}
+
+
 
 bool list_roles(std::shared_ptr<nabto::client::Connection> connection)
 {
@@ -193,16 +239,16 @@ bool list_roles(std::shared_ptr<nabto::client::Connection> connection)
     return result;
 }
 
-bool add_role_to_user(std::shared_ptr<nabto::client::Connection> connection,
-                      const std::string &user, const std::string &role)
+bool set_role(std::shared_ptr<nabto::client::Connection> connection,
+              const std::string &user, const std::string &role)
 {
     std::stringstream pathStream{};
-    pathStream << "/iam/users/" << user << "/roles/" << role;
+    pathStream << "/iam/users/" << user << "/role/" << role;
     const std::string &path = pathStream.str();
 
     char answer;
     std::stringstream message{};
-    message << "Add the role \"" << role << "\" to the user \"" << user << "\"? ";
+    message << "Assign the role \"" << role << "\" to the user \"" << user << "\"? ";
     bool yes = yn_prompt(message.str());
 
     if (yes)
@@ -215,9 +261,9 @@ bool add_role_to_user(std::shared_ptr<nabto::client::Connection> connection,
             int responseCode = coap->getResponseStatusCode();
             switch (responseCode)
             {
-                case 201:
+                case 204:
                 {
-                    std::cout << "Success." << std::endl;
+                    std::cout << "Success. Assigned the role: " << role << " to the user with the id: " << user << std::endl;
                     status = true;
                     break;
                 }
@@ -226,6 +272,11 @@ bool add_role_to_user(std::shared_ptr<nabto::client::Connection> connection,
                 {
                     std::cout << "The request was denied." << std::endl;
                     print_error_access_denied();
+                    break;
+                }
+                case 404:
+                {
+                    std::cout << "The user or role does not exists" << std::endl;
                     break;
                 }
 
@@ -257,69 +308,6 @@ bool add_role_to_user(std::shared_ptr<nabto::client::Connection> connection,
         std::cout << "Action cancelled." << std::endl;
         return true;
     }
-}
-
-bool remove_role_from_user(std::shared_ptr<nabto::client::Connection> connection,
-                           const std::string &user, const std::string &role)
-{
-    std::stringstream pathStream{};
-    pathStream << "/iam/users/" << user << "/roles/" << role;
-    const std::string &path = pathStream.str();
-
-    std::stringstream message{};
-    message << "Remove the role \"" << role << "\" from the user \"" << user << "\"? ";
-    bool yes = yn_prompt(message.str());
-    if (yes)
-    {
-        bool status = false;
-        auto coap = connection->createCoap("DELETE", path);
-        try
-        {
-            coap->execute()->waitForResult();
-            int responseCode = coap->getResponseStatusCode();
-            switch (responseCode)
-            {
-                case 202:
-                {
-                    std::cout << "Success." << std::endl;
-                    status = true;
-                    break;
-                }
-
-                case 403:
-                {
-                    std::cout
-                        << "The request to DELETE from "
-                        << path << " was denied."
-                        << std::endl;
-                    print_error_access_denied();
-                    break;
-                }
-
-                case 500:
-                {
-                    std::cout
-                        << "The request returned error 500.\n"
-                        << "Are you sure you typed in the right role id and user id?"
-                        << std::endl;
-                    break;
-                }
-            }
-        }
-        catch (...)
-        {
-            std::cerr << "An unknown error occurred." << std::endl;
-        }
-
-        return status;
-    }
-    else
-    {
-        std::cout << "Action cancelled." << std::endl;
-        return true;
-    }
-
-    return false;
 }
 
 bool delete_user(std::shared_ptr<nabto::client::Connection> connection,
