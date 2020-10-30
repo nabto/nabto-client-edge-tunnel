@@ -334,7 +334,7 @@ bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userN
             return false;
         }
     } else if (pi->Modes.count(PairingMode::PASSWORD)) {
-        if (!password_pair(connection, userName)) {
+        if (!password_pair_password(connection, userName, pairingPassword)) {
             return false;
         }
     } else if (pi->Modes.count(PairingMode::BUTTON)) {
