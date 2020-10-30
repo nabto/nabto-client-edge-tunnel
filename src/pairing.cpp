@@ -358,6 +358,7 @@ bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userN
         return false;
     }
 
+    Device.DeviceFingerprint = connection->getDeviceFingerprintFullHex();
     Device.ServerConnectToken = user->getServerConnectToken();
     
     return write_config(Device);
@@ -438,7 +439,7 @@ bool direct_pair(std::shared_ptr<nabto::client::Context> Context, const std::str
         std::cerr << "Pairing failed" << std::endl;
         return false;
     }
-
+    Device.DeviceFingerprint = connection->getDeviceFingerprintFullHex();
     Device.ServerConnectToken = user->getServerConnectToken();
     
     return write_config(Device);
