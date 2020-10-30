@@ -2,6 +2,7 @@
 
 #include "config.hpp"
 #include "scanner.hpp"
+#include "iam.h"
 
 #include <3rdparty/nlohmann/json.hpp>
 #include <iostream>
@@ -10,7 +11,6 @@
 using string = std::string;
 using json = nlohmann::json;
 
-static bool get_client_settings(std::shared_ptr<nabto::client::Connection> connection, Configuration::DeviceInfo& Device);
 static bool write_config(Configuration::DeviceInfo& Device);
 
 // arg Character should be lowercase.
@@ -206,7 +206,7 @@ bool interactive_pair(std::shared_ptr<nabto::client::Context> Context, const str
 
     auto pi = getPairingInfo(connection);
     if (!pi) {
-        std::cerr << "Cannot Get CoAP /pairing" << std::endl;
+        std::cerr << "Cannot Get CoAP /iam/pairing" << std::endl;
         return false;
     }
     PairingMode mode = get_pairing_mode(connection);
@@ -227,9 +227,14 @@ bool interactive_pair(std::shared_ptr<nabto::client::Context> Context, const str
         return false;
     }
 
-    if (!get_client_settings(connection, DeviceConfig)) {
+    // test that pairing succeeded and get missing settings for the client.
+    auto user = IAM::get_me(connection);
+    if (!user) {
+        std::cerr << "Pairing failed" << std::endl;
         return false;
     }
+
+    DeviceConfig.ServerConnectToken = user->getServerConnectToken();
 
     return write_config(DeviceConfig);
 }
@@ -346,10 +351,15 @@ bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userN
         return false;
     }
 
-    if (!get_client_settings(connection, Device)) {
+    // test that pairing succeeded and get missing settings for the client.
+    auto user = IAM::get_me(connection);
+    if (!user) {
+        std::cerr << "Pairing failed" << std::endl;
         return false;
     }
 
+    Device.ServerConnectToken = user->getServerConnectToken();
+    
     return write_config(Device);
 }
 
@@ -399,7 +409,7 @@ bool direct_pair(std::shared_ptr<nabto::client::Context> Context, const std::str
 
     std::unique_ptr<PairingInfo> pi = getPairingInfo(connection);
     if (!pi) {
-        std::cerr << "CoAP GET /pairing failed, pairing failed" << std::endl;
+        std::cerr << "CoAP GET /iam/pairing failed, pairing failed" << std::endl;
     }
 
     Device.ProductID = pi->ProductId;
@@ -422,31 +432,16 @@ bool direct_pair(std::shared_ptr<nabto::client::Context> Context, const std::str
         return false;
     }
 
-    if (!get_client_settings(connection, Device)) {
+    // test that pairing succeeded and get missing settings for the client.
+    auto user = IAM::get_me(connection);
+    if (!user) {
+        std::cerr << "Pairing failed" << std::endl;
         return false;
     }
 
+    Device.ServerConnectToken = user->getServerConnectToken();
+    
     return write_config(Device);
-}
-
-bool get_client_settings(std::shared_ptr<nabto::client::Connection> connection, Configuration::DeviceInfo& Device)
-{
-    Device.DeviceFingerprint = connection->getDeviceFingerprintFullHex();
-
-    auto coap = connection->createCoap("GET", "/iam/pairing/client-settings");
-    coap->execute()->waitForResult();
-    if (coap->getResponseStatusCode() != 205) {
-        std::string reason;
-        auto buffer = coap->getResponsePayload();
-        reason = std::string(reinterpret_cast<char*>(buffer.data()), buffer.size());
-        std::cout << "Could not get client settings: " << coap->getResponseStatusCode() << " " << reason << std::endl;
-        return false;
-    }
-
-    auto buffer = coap->getResponsePayload();
-    auto j = json::from_cbor(buffer);
-    Device.ServerConnectToken = j["ServerConnectToken"].get<string>();
-    return true;
 }
 
 bool write_config(Configuration::DeviceInfo& Device)

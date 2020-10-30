@@ -7,6 +7,7 @@ project(nabto-client-edge-tunnel)
 find_package(Threads)
 
 include_directories(include .)
+include_directories(include/3rdparty)
 
 
 if(WIN32)

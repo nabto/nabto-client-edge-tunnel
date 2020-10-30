@@ -77,23 +77,6 @@ static void printMissingClientConfig(const std::string& filename)
         << "}" <<std::endl;
 }
 
-static bool isPaired(std::shared_ptr<nabto::client::Connection> connection);
-
-bool isPaired(std::shared_ptr<nabto::client::Connection> connection)
-{
-    auto coap = connection->createCoap("GET", "/pairing/is-paired");
-
-    try {
-        coap->execute()->waitForResult();
-
-        return (coap->getResponseStatusCode() == 205);
-
-    } catch(...) {
-        std::cerr << "Cannot get pairing state" << std::endl;
-        exit(1);
-    }
-}
-
 class CloseListener : public nabto::client::ConnectionEventsCallback {
  public:
 
@@ -190,7 +173,10 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
         return nullptr;
     }
 
-    if (!isPaired(connection)) {
+    // we are paired if the connection has a user in the device
+    auto user = IAM::get_me(connection);
+
+    if (!user) {
         std::cerr << "The client is not paired with device, do the pairing again" << std::endl;
         return nullptr;
     }
@@ -483,10 +469,22 @@ int main(int argc, char** argv)
                 if (!result.count("userid")) {
                     std::cerr << "--get-user requires the --userid parameter." << std::endl;
                 } else {
-                    status = IAM::get_user(connection, result["userid"].as<std::string>());
+                    auto user = IAM::get_user(connection, result["userid"].as<std::string>());
+                    if (user) {
+                        user->print();
+                        status = true;
+                    } else {
+                        status = false;
+                    }
                 }
             } else if (result.count("get-me")) {
-                status = IAM::get_me(connection);
+                auto user = IAM::get_me(connection);
+                if (user) {
+                    user->print();
+                    status = true;
+                } else {
+                    status = false;
+                }
             }
 
             connection->close()->waitForResult();

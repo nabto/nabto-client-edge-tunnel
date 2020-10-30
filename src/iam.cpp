@@ -19,6 +19,37 @@ using json = nlohmann::json;
 
 namespace IAM
 {
+
+void from_json(const json& j, User& user)
+{
+    // id is mandatory
+    j.at("Id").get_to(user.id_);
+    // name is mandatory
+    j.at("Name").get_to(user.name_);
+
+    try {
+        j.at("Fingerprint").get_to(user.fingerprint_);
+    } catch (const std::exception& e) { }
+    try {
+        j.at("ServerConnectToken").get_to(user.serverConnectToken_);
+    } catch (const std::exception& e) { }
+    try {
+        j.at("Role").get_to(user.role_);
+    } catch (const std::exception& e) { }
+}
+
+std::unique_ptr<User> User::create(const nlohmann::json& in)
+{
+    try {
+        User user = in.get<User>();
+        return std::make_unique<User>(user);
+    } catch (std::exception& e) {
+        return nullptr;
+    }
+}
+
+
+
 bool yn_prompt(const std::string &message)
 {
     char answer = 0;
@@ -97,7 +128,7 @@ bool list_users(std::shared_ptr<nabto::client::Connection> connection)
     return result;
 }
 
-bool get_user(std::shared_ptr<nabto::client::Connection> connection, const std::string& userId)
+std::unique_ptr<User> get_user(std::shared_ptr<nabto::client::Connection> connection, const std::string& userId)
 {
     bool result = false;
     std::string path = "/iam/users/" + userId;
@@ -113,10 +144,11 @@ bool get_user(std::shared_ptr<nabto::client::Connection> connection, const std::
             {
                 auto cbor = coap->getResponsePayload();
 
+
                 json user = json::from_cbor(cbor);
-                std::cout << user.dump(4) << std::endl;
-                result = true;
-                break;
+                auto decoded = User::create(user);
+                return decoded;
+                
             }
 
             case 403:
@@ -139,11 +171,11 @@ bool get_user(std::shared_ptr<nabto::client::Connection> connection, const std::
     {
         std::cerr << "Cannot get the user " << userId << std::endl;
     }
-    return result;
+    return nullptr;
 }
 
 
-bool get_me(std::shared_ptr<nabto::client::Connection> connection)
+std::unique_ptr<User> get_me(std::shared_ptr<nabto::client::Connection> connection)
 {
     bool result = false;
     std::string path = "/iam/me";
@@ -160,9 +192,9 @@ bool get_me(std::shared_ptr<nabto::client::Connection> connection)
                 auto cbor = coap->getResponsePayload();
 
                 json user = json::from_cbor(cbor);
-                std::cout << user.dump(4) << std::endl;
-                result = true;
-                break;
+                
+                auto decoded = User::create(user);
+                return decoded;
             }
 
             case 403:
@@ -185,7 +217,7 @@ bool get_me(std::shared_ptr<nabto::client::Connection> connection)
     {
         std::cerr << "Cannot get the user which is associated with the connection " << std::endl;
     }
-    return result;
+    return nullptr;
 }
 
 
