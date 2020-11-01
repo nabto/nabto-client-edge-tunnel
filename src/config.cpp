@@ -273,6 +273,20 @@ std::unique_ptr<DeviceInfo> GetPairedDevice(int Index)
     }
 }
 
+std::unique_ptr<DeviceInfo> GetPairedDevice(const std::string& deviceFingerprint)
+{
+    for (auto& bookmark : Configuration.Bookmarks) {
+        if (bookmark.second.DeviceFingerprint == deviceFingerprint ) {
+            auto device = std::make_unique<DeviceInfo>(bookmark.second);
+            device->Index = bookmark.first;
+            return device;
+        } else {
+            return nullptr;
+        }
+
+    }
+}
+
 bool HasNoBookmarks()
 {
     return Configuration.Bookmarks.empty();

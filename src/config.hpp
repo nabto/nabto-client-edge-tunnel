@@ -68,6 +68,7 @@ const char* GetConfigFilePath();
 const char* GetStateFilePath();
 bool WriteStateFile();
 std::unique_ptr<DeviceInfo> GetPairedDevice(int Index);
+std::unique_ptr<DeviceInfo> GetPairedDevice(const std::string& fingerprint);
 bool HasNoBookmarks();
 // insert info into bookmarks, and set the index into the info
 void AddPairedDeviceToBookmarks(DeviceInfo& Info);

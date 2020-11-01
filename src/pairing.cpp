@@ -13,6 +13,20 @@ using json = nlohmann::json;
 
 static bool write_config(Configuration::DeviceInfo& Device);
 
+static bool write_config(std::shared_ptr<nabto::client::Connection> connection, const std::string& directCandidate = "");
+
+static bool handle_already_paired(std::shared_ptr<nabto::client::Connection> connection, const std::string& directCandidate = "")
+{
+    auto device = Configuration::GetPairedDevice(connection->getDeviceFingerprintFullHex());
+    if (device) {
+        std::cout << "The client is alredy paired with the device the pairing has the bookmark " << device->Index << std::endl;
+        return true;
+    } else {
+        std::cout << "The client is already paired with the device. However the client does not have the state saved, recreating the client state" << std::endl;
+        return write_config(connection, directCandidate);
+    }
+}
+
 // arg Character should be lowercase.
 static bool is_char_case_insensitive(char Subject, char Character) {
     return (Character >= 'a' && Character <= 'z') &&
@@ -123,8 +137,6 @@ static bool password_pair(std::shared_ptr<nabto::client::Connection> connection,
 
 bool interactive_pair(std::shared_ptr<nabto::client::Context> Context, const string& userName)
 {
-    Configuration::DeviceInfo DeviceConfig;
-
     std::cout << "Scanning for local devices for 2 seconds." << std::endl;
     auto devices = nabto::examples::common::Scanner::scan(Context, std::chrono::milliseconds(2000));
     if (devices.size() == 0) {
@@ -179,9 +191,6 @@ bool interactive_pair(std::shared_ptr<nabto::client::Context> Context, const str
         options["Remote"] = false;
         connection->setOptions(options.dump());
 
-        DeviceConfig.DeviceID = DeviceID;
-        DeviceConfig.ProductID = ProductID;
-
         try {
             connection->connect()->waitForResult();
         }
@@ -201,8 +210,14 @@ bool interactive_pair(std::shared_ptr<nabto::client::Context> Context, const str
         std::cout << "Connected to device ProductId: " <<  ProductID << " DeviceId: " << DeviceID << std::endl;
     }
 
-    DeviceConfig.DeviceFingerprint = connection->getDeviceFingerprintFullHex();
     std::cout << "Connected to the device" << std::endl;
+
+    {
+        auto user = IAM::get_me(connection);
+        if (user) {
+            return handle_already_paired(connection);
+        }
+    }
 
     auto pi = getPairingInfo(connection);
     if (!pi) {
@@ -226,17 +241,7 @@ bool interactive_pair(std::shared_ptr<nabto::client::Context> Context, const str
         std::cerr << "No supported pairing modes" << std::endl;
         return false;
     }
-
-    // test that pairing succeeded and get missing settings for the client.
-    auto user = IAM::get_me(connection);
-    if (!user) {
-        std::cerr << "Pairing failed" << std::endl;
-        return false;
-    }
-
-    DeviceConfig.ServerConnectToken = user->getServerConnectToken();
-
-    return write_config(DeviceConfig);
+    return write_config(connection);
 }
 
 static std::vector<std::string> split(const std::string& s, char delimiter)
@@ -282,7 +287,6 @@ bool string_pair(std::shared_ptr<nabto::client::Context> ctx, const string& user
 
 bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userName, const string& productId, const string& deviceId, const string& pairingPassword, const string& serverConnectToken)
 {
-    Configuration::DeviceInfo Device;
     auto Config = Configuration::GetConfigInfo();
     if (!Config) {
         return false;
@@ -309,9 +313,6 @@ bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userN
     connection->setServerConnectToken(serverConnectToken);
     json options;
 
-    Device.DeviceID = deviceId;
-    Device.ProductID = productId;
-
     try {
         connection->connect()->waitForResult();
     } catch (nabto::client::NabtoException& e) {
@@ -328,6 +329,11 @@ bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userN
     }
 
     std::cout << "Connected to device ProductId: " <<  productId << " DeviceId: " << deviceId << std::endl;
+
+    auto user = IAM::get_me(connection);
+    if (user) {
+        return handle_already_paired(connection);
+    }
 
     std::unique_ptr<PairingInfo> pi = getPairingInfo(connection);
     if (!pi) {
@@ -351,16 +357,7 @@ bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userN
         return false;
     }
 
-    // test that pairing succeeded and get missing settings for the client.
-    auto user = IAM::get_me(connection);
-    if (!user) {
-        std::cerr << "Pairing failed" << std::endl;
-        return false;
-    }
-
-    Device.ServerConnectToken = user->getServerConnectToken();
-    
-    return write_config(Device);
+    return write_config(connection);
 }
 
 bool direct_pair(std::shared_ptr<nabto::client::Context> Context, const std::string& userName, const std::string& host)
@@ -403,17 +400,15 @@ bool direct_pair(std::shared_ptr<nabto::client::Context> Context, const std::str
         return false;
     }
 
-    // We have a connection to a device. we do not know the product id, device id or server connect token.
-    Configuration::DeviceInfo Device;
-    Device.DirectCandidate = host;
+    auto user = IAM::get_me(connection);
+    if (user) {
+        return handle_already_paired(connection, host);
+    }
 
     std::unique_ptr<PairingInfo> pi = getPairingInfo(connection);
     if (!pi) {
         std::cerr << "CoAP GET /iam/pairing failed, pairing failed" << std::endl;
     }
-
-    Device.ProductID = pi->ProductId;
-    Device.DeviceID = pi->DeviceId;
 
     if (pi->Modes.count(PairingMode::LOCAL)) {
         if(!local_pair(connection, userName)) {
@@ -432,23 +427,39 @@ bool direct_pair(std::shared_ptr<nabto::client::Context> Context, const std::str
         return false;
     }
 
-    // test that pairing succeeded and get missing settings for the client.
+    return write_config(connection, host);
+}
+
+bool write_config(std::shared_ptr<nabto::client::Connection> connection, const std::string& host)
+{
+    Configuration::DeviceInfo device;
+
+    std::unique_ptr<PairingInfo> pi = getPairingInfo(connection);
+    if (!pi) {
+        std::cerr << "CoAP GET /iam/pairing failed, pairing failed" << std::endl;
+    }
+
+    device.ProductID = pi->ProductId;
+    device.DeviceID = pi->DeviceId;
+    device.DeviceFingerprint = connection->getDeviceFingerprintFullHex();
+    if (!host.empty()) {
+        device.DirectCandidate = host;
+    }
+
     auto user = IAM::get_me(connection);
     if (!user) {
         std::cerr << "Pairing failed" << std::endl;
         return false;
     }
-
-    Device.ServerConnectToken = user->getServerConnectToken();
-    
-    return write_config(Device);
+    device.ServerConnectToken = user->getServerConnectToken();
+    return write_config(device);
 }
 
-bool write_config(Configuration::DeviceInfo& Device)
+bool write_config(Configuration::DeviceInfo& device)
 {
-    Configuration::AddPairedDeviceToBookmarks(Device);
+    Configuration::AddPairedDeviceToBookmarks(device);
 
-    std::cout << "The device " << Device.GetFriendlyName() << " has been set into the bookmarks as index " << Device.Index << std::endl;
+    std::cout << "The device " << device.GetFriendlyName() << " has been set into the bookmarks as index " << device.Index << std::endl;
 
 
 
