@@ -367,6 +367,7 @@ bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const string& userN
         return false;
     }
 
+
     return write_config(connection);
 }
 
