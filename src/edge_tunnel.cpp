@@ -4,7 +4,8 @@
 #include "pairing.hpp"
 #include "config.hpp"
 #include "timestamp.hpp"
-#include "iam.h"
+#include "iam.hpp"
+#include "iam_interactive.hpp"
 
 #include <3rdparty/cxxopts.hpp>
 #include <3rdparty/nlohmann/json.hpp>
@@ -101,22 +102,24 @@ class CloseListener : public nabto::client::ConnectionEventsCallback {
 
 void handleFingerprintMismatch(std::shared_ptr<nabto::client::Connection> connection, Configuration::DeviceInfo device)
 {
-    auto pairingInfo = getPairingInfo(connection);
-    if (pairingInfo) {
-        if (pairingInfo->ProductId != device.ProductID) {
-            std::cerr << "The Product ID of the connected device (" <<  pairingInfo->ProductId << ") does not match the Product ID for the bookmark " << device.GetFriendlyName() << std::endl;
-        } else if (pairingInfo->DeviceId != device.DeviceID) {
-            std::cerr << "The Device ID of the connected device (" <<  pairingInfo->DeviceId << ") does not match the Device ID for the bookmark " << device.GetFriendlyName() << std::endl;
+    IAM::IAMError ec;
+    std::unique_ptr<IAM::PairingInfo> pairingInfo;
+    std::tie(ec, pairingInfo) = IAM::get_pairing_info(connection);
+    if (ec.ok()) {
+        if (pairingInfo->getProductId() != device.getProductId()) {
+            std::cerr << "The Product ID of the connected device (" <<  pairingInfo->getProductId() << ") does not match the Product ID for the bookmark " << device.getFriendlyName() << std::endl;
+        } else if (pairingInfo->getDeviceId() != device.getDeviceId()) {
+            std::cerr << "The Device ID of the connected device (" <<  pairingInfo->getDeviceId() << ") does not match the Device ID for the bookmark " << device.getFriendlyName() << std::endl;
         } else {
             std::cerr << "The public key of the device does not match the public key in the pairing. Repair the device with the client." << std::endl;
         }
     } else {
         // should not happen
-        std::cerr << "The configured public key does not match that of the connected device, repair the client with the device." << std::endl;
+        ec.printError();
     }
 }
 
-std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabto::client::Context> context, Configuration::DeviceInfo Device)
+std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabto::client::Context> context, Configuration::DeviceInfo device)
 {
     auto Config = Configuration::GetConfigInfo();
     if (!Config) {
@@ -125,12 +128,12 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
     }
 
     auto connection = context->createConnection();
-    connection->setProductId(Device.ProductID);
-    connection->setDeviceId(Device.DeviceID);
+    connection->setProductId(device.getProductId());
+    connection->setDeviceId(device.getDeviceId());
 
-    if (!Device.DirectCandidate.empty()) {
+    if (!device.getDirectCandidate().empty()) {
         connection->enableDirectCandidates();
-        connection->addDirectCandidate(Device.DirectCandidate, 5592);
+        connection->addDirectCandidate(device.getDirectCandidate(), 5592);
         connection->endOfDirectCandidates();
     }
 
@@ -146,7 +149,7 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
     }
 
     connection->setServerKey(Config->getServerKey());
-    connection->setServerConnectToken(Device.ServerConnectToken);
+    connection->setServerConnectToken(device.getServerConnectToken());
 
     try {
         connection->connect()->waitForResult();
@@ -164,8 +167,8 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
     }
 
     try {
-        if (connection->getDeviceFingerprintFullHex() != Device.DeviceFingerprint) {
-            handleFingerprintMismatch(connection, Device);
+        if (connection->getDeviceFingerprintFullHex() != device.getDeviceFingerprint()) {
+            handleFingerprintMismatch(connection, device);
             return nullptr;
         }
     } catch (...) {
@@ -174,7 +177,9 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
     }
 
     // we are paired if the connection has a user in the device
-    auto user = IAM::get_me(connection);
+    IAM::IAMError ec;
+    std::unique_ptr<IAM::User> user;
+    std::tie(ec, user) = IAM::get_me(connection);
 
     if (!user) {
         std::cerr << "The client is not paired with device, do the pairing again" << std::endl;
@@ -328,6 +333,7 @@ int main(int argc, char** argv)
         ("get-user", "Get a user.")
         ("set-role", "Assign a role to a user.")
         ("delete-user", "Delete a user on device.")
+        ("create-user", "Create a new interactively in the device.")
         ;
 
     options.add_options("TCP Tunnelling")
@@ -418,7 +424,8 @@ int main(int argc, char** argv)
                  result.count("set-role") ||
                  result.count("delete-user") ||
                  result.count("get-user") ||
-                 result.count("get-me"))
+                 result.count("get-me") ||
+                 result.count("create-user"))
 
         {
             // For all these commands we need a paired device.
@@ -440,7 +447,7 @@ int main(int argc, char** argv)
             if (!connection) {
                 return 1;
             }
-            std::cout << "Connected to the device " << Device->GetFriendlyName() << std::endl;
+            std::cout << "Connected to the device " << Device->getFriendlyName() << std::endl;
 
             bool status = false;
             if (result.count("services")) {
@@ -457,7 +464,7 @@ int main(int argc, char** argv)
                 } else if (!result.count("userid")) {
                     std::cerr << "--set-role requires the --userid parameter." << std::endl;
                 } else {
-                    status = IAM::set_role(connection, result["userid"].as<std::string>(), result["role"].as<std::string>());
+                    status = IAM::set_role_interactive(connection, result["userid"].as<std::string>(), result["role"].as<std::string>());
                 }
             } else if (result.count("delete-user")) {
                 if (!result.count("userid")) {
@@ -469,7 +476,7 @@ int main(int argc, char** argv)
                 if (!result.count("userid")) {
                     std::cerr << "--get-user requires the --userid parameter." << std::endl;
                 } else {
-                    auto user = IAM::get_user(connection, result["userid"].as<std::string>());
+                    auto user = IAM::get_user_interactive(connection, result["userid"].as<std::string>());
                     if (user) {
                         user->print();
                         status = true;
@@ -478,13 +485,17 @@ int main(int argc, char** argv)
                     }
                 }
             } else if (result.count("get-me")) {
-                auto user = IAM::get_me(connection);
+                IAM::IAMError ec;
+                std::unique_ptr<IAM::User> user;
+                std::tie(ec, user) = IAM::get_me(connection);
                 if (user) {
                     user->print();
                     status = true;
                 } else {
                     status = false;
                 }
+            } else if (result.count("create-user")) {
+                status = IAM::create_user_interactive(connection);
             }
 
             connection->close()->waitForResult();

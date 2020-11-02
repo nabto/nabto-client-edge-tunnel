@@ -40,24 +40,24 @@ static struct
 void to_json(json& j, const DeviceInfo& d)
 {
     j = json({
-            {"DeviceFingerprint", d.DeviceFingerprint},
-            {"DeviceId", d.DeviceID},
-            {"ProductId", d.ProductID},
-            {"ServerConnectToken", d.ServerConnectToken}
+            {"DeviceFingerprint", d.deviceFingerprint_},
+            {"DeviceId", d.deviceId_},
+            {"ProductId", d.productId_},
+            {"ServerConnectToken", d.serverConnectToken_}
         });
-    if (!d.DirectCandidate.empty()) {
-        j["DirectCandidate"] = d.DirectCandidate;
+    if (!d.directCandidate_.empty()) {
+        j["DirectCandidate"] = d.directCandidate_;
     }
 }
 
 void from_json(const json& j, DeviceInfo& d)
 {
-    j.at("DeviceFingerprint").get_to(d.DeviceFingerprint);
-    j.at("DeviceId").get_to(d.DeviceID);
-    j.at("ProductId").get_to(d.ProductID);
-    j.at("ServerConnectToken").get_to(d.ServerConnectToken);
+    j.at("DeviceFingerprint").get_to(d.deviceFingerprint_);
+    j.at("DeviceId").get_to(d.deviceId_);
+    j.at("ProductId").get_to(d.productId_);
+    j.at("ServerConnectToken").get_to(d.serverConnectToken_);
     try {
-        j.at("DirectCandidate").get_to(d.DirectCandidate);
+        j.at("DirectCandidate").get_to(d.directCandidate_);
     } catch (const std::exception& e) {
         // no direct candidate, fine
     }
@@ -259,12 +259,12 @@ bool WriteStateFile()
     return WriteStringToFile(Contents.dump(2), Configuration.StateFilePath);
 }
 
-std::unique_ptr<DeviceInfo> GetPairedDevice(int Index)
+std::unique_ptr<DeviceInfo> GetPairedDevice(int index)
 {
-    if (Index >= 0 && Configuration.Bookmarks.size() > Index)
+    if (index >= 0 && Configuration.Bookmarks.size() > index)
     {
-        auto device = std::make_unique<DeviceInfo>(Configuration.Bookmarks[Index]);
-        device->Index = Index;
+        auto device = std::make_unique<DeviceInfo>(Configuration.Bookmarks[index]);
+        device->index_ = index;
         return device;
     }
     else
@@ -276,14 +276,13 @@ std::unique_ptr<DeviceInfo> GetPairedDevice(int Index)
 std::unique_ptr<DeviceInfo> GetPairedDevice(const std::string& deviceFingerprint)
 {
     for (auto& bookmark : Configuration.Bookmarks) {
-        if (bookmark.second.DeviceFingerprint == deviceFingerprint ) {
+        if (bookmark.second.getDeviceFingerprint() == deviceFingerprint ) {
             auto device = std::make_unique<DeviceInfo>(bookmark.second);
-            device->Index = bookmark.first;
+            device->index_ = bookmark.first;
             return device;
         } else {
             return nullptr;
         }
-
     }
 }
 
@@ -295,16 +294,16 @@ bool HasNoBookmarks()
 void AddPairedDeviceToBookmarks(DeviceInfo& Info)
 {
     for (auto b : Configuration.Bookmarks) {
-        if (b.second.DeviceID == Info.DeviceID && b.second.ProductID == Info.ProductID) {
+        if (b.second.getDeviceId() == Info.getDeviceId() && b.second.getProductId() == Info.getProductId()) {
             Configuration.Bookmarks[b.first] = Info;
-            Info.Index = b.first;
+            Info.index_ = b.first;
             return;
         }
     }
 
     size_t index = Configuration.Bookmarks.size();
     Configuration.Bookmarks[index] = Info;
-    Info.Index = index;
+    Info.index_ = index;
     return;
 }
 
@@ -333,12 +332,12 @@ void PrintBookmarks()
         return;
     }
 
-    int Index = 0;
+    int index = 0;
     std::cout << "The following devices are saved in your bookmarks:" << std::endl;
     for (auto Bookmark : Configuration.Bookmarks)
     {
-        std::cout << "[" << Index << "] ProductId: " << Bookmark.second.ProductID << " DeviceId: " << Bookmark.second.DeviceID << std::endl;
-        Index++;
+        std::cout << "[" << index << "] ProductId: " << Bookmark.second.getProductId() << " DeviceId: " << Bookmark.second.getDeviceId() << std::endl;
+        index++;
     }
 }
 

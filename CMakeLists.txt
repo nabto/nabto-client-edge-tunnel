@@ -31,6 +31,7 @@ set(src
     src/pairing.cpp
     src/timestamp.cpp
     src/iam.cpp
+    src/iam_interactive.cpp
 )
 
 add_executable(edge_tunnel_client ${platform_src} ${src})

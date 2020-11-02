@@ -1,7 +1,10 @@
-#include "iam.h"
+#include "iam.hpp"
 #include <string>
 #include <sstream>
 #include <iostream>
+#include <set>
+#include <vector>
+#include <random>
 
 #include <3rdparty/nlohmann/json.hpp>
 
@@ -20,12 +23,45 @@ using json = nlohmann::json;
 namespace IAM
 {
 
-void from_json(const json& j, User& user)
+IAMError::IAMError() : ok_(true) {}
+IAMError::IAMError(std::shared_ptr<nabto::client::Coap> coap)
 {
-    // id is mandatory
-    j.at("Id").get_to(user.id_);
+    statusCode_ = coap->getResponseStatusCode();
+}
+IAMError::IAMError(nabto::client::NabtoException e)
+{
+    if (e.status().ok()) {
+        ok_ = true;
+    } else {
+        message_ = e.what();
+    }
+}
+
+IAMError::IAMError(std::exception& e)
+{
+    ok_ = false;
+    message_ = e.what();
+}
+
+bool IAMError::ok() { return ok_; }
+
+void IAMError::printError()
+{
+    if (ok_) {
+        return;
+    }
+    if (!message_.empty()) {
+        std::cerr << message_ << std::endl;
+    }
+    if (statusCode_ < 200 || statusCode_ >= 300) {
+        std::cerr << "Coap request failed with status code " << statusCode_
+                  << std::endl;
+    }
+}
+
+void from_json(const json &j, User &user) {
     // name is mandatory
-    j.at("Name").get_to(user.name_);
+    j.at("Username").get_to(user.username_);
 
     try {
         j.at("Fingerprint").get_to(user.fingerprint_);
@@ -48,355 +84,202 @@ std::unique_ptr<User> User::create(const nlohmann::json& in)
     }
 }
 
-
-
-bool yn_prompt(const std::string &message)
+std::pair<IAMError, std::set<std::string> > get_users(std::shared_ptr<nabto::client::Connection> connection)
 {
-    char answer = 0;
-    do
-    {
-        std::cout << message << " [y/n]: ";
-        std::cin >> answer;
-    }
-    while (!std::cin.fail() && answer != 'y' && answer != 'n');
-
-    return answer == 'y';
-}
-
-
-void print_coap_error(const std::string &path, int responseCode)
-{
-    std::cout << "The CoAP request to " << path << " returned response code: "
-              << responseCode << std::endl;
-}
-
-void print_error_access_denied()
-{
-    std::cout
-        << "This is potentially due to insufficient privileges,\n"
-        << "check the IAM policies file if you are the owner of this device."
-        << std::endl;
-}
-
-bool list_users(std::shared_ptr<nabto::client::Connection> connection)
-{
-    bool result = false;
-    std::string path = "/iam/users";
-    auto coap = connection->createCoap("GET", path);
-
-    try
-    {
+    try {
+        auto coap = connection->createCoap("GET", "/iam/users");
         coap->execute()->waitForResult();
         int responseCode = coap->getResponseStatusCode();
-        switch (responseCode)
-        {
-            case 205:
+        if (responseCode == 205) {
+            auto cbor = coap->getResponsePayload();
+            std::set<std::string> users;
+            json user_list = json::from_cbor(cbor);
+            for (auto &user : user_list)
             {
-                auto cbor = coap->getResponsePayload();
-                std::cout << "Listing all users on the device ..." << std::endl;
-                json user_list = json::from_cbor(cbor);
-                int i = 1;
-                for (auto &user : user_list)
-                {
-                    std::cout << "[" << i++ << "] UserID: " << user.get<std::string>() << std::endl;;
-                }
-                result = true;
-                break;
+                users.insert(user.get<std::string>());
             }
-
-            case 403:
-            {
-                std::cout
-                    << "The request to list users (" << path << ")"
-                    << " was denied." << std::endl;
-                print_error_access_denied();
-                break;
-            }
-
-            default:
-            {
-                print_coap_error(path, responseCode);
-                break;
-            }
+            return std::make_pair(IAMError(), users);
         }
+        return std::make_pair(IAMError(coap), std::set<std::string>());
+    } catch (nabto::client::NabtoException& e) {
+        return std::make_pair(IAMError(e), std::set<std::string>());
     }
-    catch (...)
-    {
-        std::cerr << "Cannot get IAM user list" << std::endl;
-    }
-
-    return result;
 }
-
-std::unique_ptr<User> get_user(std::shared_ptr<nabto::client::Connection> connection, const std::string& userId)
+std::pair<IAMError, std::unique_ptr<User> > get_user_path(std::shared_ptr<nabto::client::Connection> connection, const std::string& path)
 {
-    bool result = false;
-    std::string path = "/iam/users/" + userId;
-    auto coap = connection->createCoap("GET", path);
-
-    try
-    {
+    try {
+        auto coap = connection->createCoap("GET", path);
         coap->execute()->waitForResult();
         int responseCode = coap->getResponseStatusCode();
-        switch (responseCode)
-        {
-            case 205:
-            {
-                auto cbor = coap->getResponsePayload();
+        if (responseCode == 205) {
+            auto cbor = coap->getResponsePayload();
 
 
-                json user = json::from_cbor(cbor);
-                auto decoded = User::create(user);
-                return decoded;
-                
-            }
-
-            case 403:
-            {
-                std::cout
-                    << "The request to list roles (" << path << ")"
-                    << " was denied." << std::endl;
-                print_error_access_denied();
-                break;
-            }
-
-            default:
-            {
-                print_coap_error(path, responseCode);
-                break;
+            json user = json::from_cbor(cbor);
+            auto decoded = User::create(user);
+            if (decoded != nullptr) {
+                return make_pair(IAMError(), std::move(decoded));
             }
         }
+        return std::make_pair(IAMError(coap), nullptr);
+    } catch (nabto::client::NabtoException& e) {
+        return std::make_pair(IAMError(e), nullptr);
     }
-    catch (...)
-    {
-        std::cerr << "Cannot get the user " << userId << std::endl;
-    }
-    return nullptr;
+}
+std::pair<IAMError, std::unique_ptr<User> > get_user(std::shared_ptr<nabto::client::Connection> connection, const std::string& username)
+{
+    std::string path = "/iam/users/" + username;
+    return get_user_path(connection, path);
 }
 
-
-std::unique_ptr<User> get_me(std::shared_ptr<nabto::client::Connection> connection)
+std::pair<IAMError, std::unique_ptr<User> > get_me(std::shared_ptr<nabto::client::Connection> connection)
 {
-    bool result = false;
-    std::string path = "/iam/me";
-    auto coap = connection->createCoap("GET", path);
+    return get_user_path(connection, "/iam/me");
+}
 
-    try
-    {
+std::pair<IAMError, std::set<std::string> > get_roles(
+    std::shared_ptr<nabto::client::Connection> connection)
+{
+    auto coap = connection->createCoap("GET", "/iam/roles");
+    try {
         coap->execute()->waitForResult();
         int responseCode = coap->getResponseStatusCode();
-        switch (responseCode)
-        {
-            case 205:
-            {
-                auto cbor = coap->getResponsePayload();
-
-                json user = json::from_cbor(cbor);
-                
-                auto decoded = User::create(user);
-                return decoded;
+        if (responseCode == 205) {
+            auto cbor = coap->getResponsePayload();
+            json role_list = json::from_cbor(cbor);
+            std::set<std::string> roles;
+            for (auto &role : role_list) {
+                roles.insert(role.get<std::string>());
             }
-
-            case 403:
-            {
-                std::cout
-                    << "The request to (" << path << ")"
-                    << " was denied." << std::endl;
-                print_error_access_denied();
-                break;
-            }
-
-            default:
-            {
-                print_coap_error(path, responseCode);
-                break;
-            }
+            return std::make_pair(IAMError(), roles);
         }
+        return std::make_pair(IAMError(coap), std::set<std::string>());
+    } catch (nabto::client::NabtoException &e) {
+        return std::make_pair(IAMError(e), std::set<std::string>());
     }
-    catch (...)
-    {
-        std::cerr << "Cannot get the user which is associated with the connection " << std::endl;
-    }
-    return nullptr;
 }
 
-
-
-bool list_roles(std::shared_ptr<nabto::client::Connection> connection)
-{
-    bool result = false;
-    std::string path = "/iam/roles";
-    auto coap = connection->createCoap("GET", path);
-
-    try
-    {
-        coap->execute()->waitForResult();
-        int responseCode = coap->getResponseStatusCode();
-        switch (responseCode)
-        {
-            case 205:
-            {
-                auto cbor = coap->getResponsePayload();
-                std::cout << "Listing available roles on the device ..." << std::endl;
-                json role_list = json::from_cbor(cbor);
-                int i = 1;
-                for (auto &role : role_list)
-                {
-                    std::cout << "[" << i++ << "]: " << role.get<std::string>() << std::endl;;
-                }
-                result = true;
-                break;
-            }
-
-            case 403:
-            {
-                std::cout
-                    << "The request to list roles (" << path << ")"
-                    << " was denied." << std::endl;
-                print_error_access_denied();
-                break;
-            }
-
-            default:
-            {
-                print_coap_error(path, responseCode);
-                break;
-            }
-        }
-    }
-    catch (...)
-    {
-        std::cerr << "Cannot get IAM role list" << std::endl;
-    }
-    return result;
-}
-
-bool set_role(std::shared_ptr<nabto::client::Connection> connection,
-              const std::string &user, const std::string &role)
+IAMError set_role(std::shared_ptr<nabto::client::Connection> connection, const std::string &user, const std::string &role)
 {
     std::stringstream pathStream{};
     pathStream << "/iam/users/" << user << "/role/" << role;
     const std::string &path = pathStream.str();
-
-    char answer;
-    std::stringstream message{};
-    message << "Assign the role \"" << role << "\" to the user \"" << user << "\"? ";
-    bool yes = yn_prompt(message.str());
-
-    if (yes)
-    {
-        bool status = false;
+    try {
         auto coap = connection->createCoap("PUT", path);
-        try
-        {
-            coap->execute()->waitForResult();
-            int responseCode = coap->getResponseStatusCode();
-            switch (responseCode)
-            {
-                case 204:
-                {
-                    std::cout << "Success. Assigned the role: " << role << " to the user with the id: " << user << std::endl;
-                    status = true;
-                    break;
-                }
-
-                case 403:
-                {
-                    std::cout << "The request was denied." << std::endl;
-                    print_error_access_denied();
-                    break;
-                }
-                case 404:
-                {
-                    std::cout << "The user or role does not exists" << std::endl;
-                    break;
-                }
-
-                case 500:
-                {
-                    std::cout
-                        << "The request returned error 500.\n"
-                        << "Are you sure you typed in the right role id and user id?"
-                        << std::endl;
-                    break;
-                }
-
-                default:
-                {
-                    print_coap_error(path, responseCode);
-                    break;
-                }
-            }
+        coap->execute()->waitForResult();
+        int responseCode = coap->getResponseStatusCode();
+        if(responseCode == 204) {
+            return IAMError();
         }
-        catch (...)
-        {
-            std::cerr << "An unknown error occurred." << std::endl;
-        }
-
-        return status;
-    }
-    else
-    {
-        std::cout << "Action cancelled." << std::endl;
-        return true;
+        return IAMError(coap);
+    } catch (nabto::client::NabtoException& e) {
+        return IAMError(e);
     }
 }
 
-bool delete_user(std::shared_ptr<nabto::client::Connection> connection,
-                 const std::string &user)
+IAMError set_password(std::shared_ptr<nabto::client::Connection> connection, const std::string& user, const std::string& password)
 {
-    std::stringstream pathStream{};
-    pathStream << "/iam/users/" << user;
-    const std::string &path = pathStream.str();
+    std::stringstream path;
+    path << "/iam/users/" << user << "/password";
+    try {
+        auto coap = connection->createCoap("PUT", path.str());
+        nlohmann::json root;
+        root = password;
+        std::vector<uint8_t> cbor = nlohmann::json::to_cbor(root);
+        coap->setRequestPayload(CONTENT_FORMAT_APPLICATION_CBOR, cbor);
+        coap->execute()->waitForResult();
+        int responseCode = coap->getResponseStatusCode();
+        if(responseCode == 204) {
+            return IAMError();
+        }
+        return IAMError(coap);
+    } catch (nabto::client::NabtoException& e) {
+        return IAMError(e);
+    }
+    
+}
 
-    std::stringstream message{};
-    message << "Delete the user \"" << user << "\"? ";
-    bool yes = yn_prompt(message.str());
-    if (yes)
-    {
-        bool status = false;
-        auto coap = connection->createCoap("DELETE", path);
-        try
-        {
-            coap->execute()->waitForResult();
-            int responseCode = coap->getResponseStatusCode();
-            switch(responseCode)
-            {
-                case 202:
-                {
-                    std::cout << "Success." << std::endl;
-                    status = true;
-                    break;
-                }
+std::pair<IAMError, std::unique_ptr<User> > create_user(
+    std::shared_ptr<nabto::client::Connection> connection,
+    const std::string &username) {
+    auto coap = connection->createCoap("POST", "/iam/users");
+    nlohmann::json root;
+    root["Username"] = username;
+    std::vector<uint8_t> cborOut = nlohmann::json::to_cbor(root);
+    coap->setRequestPayload(CONTENT_FORMAT_APPLICATION_CBOR, cborOut);
 
-                case 403:
-                {
-                    std::cout
-                        << "The request to DELETE from"
-                        << path << "was denied."
-                        << std::endl;
-                    print_error_access_denied();
-                    break;
-                }
+    coap->execute()->waitForResult();
+    uint16_t statusCode = coap->getResponseStatusCode();
+    if (statusCode == 201) {
+        auto cbor = coap->getResponsePayload();
 
-                default:
-                {
-                    print_coap_error(path, responseCode);
-                    break;
-                }
+        json user = json::from_cbor(cbor);
+                
+        std::unique_ptr<User> decoded = User::create(user);
+        return std::make_pair(IAMError(), std::move(decoded));
+    } else {
+        return std::make_pair(IAMError(coap), nullptr);
+    }
+}
+
+
+void from_json(const json& j, PairingInfo& pi)
+{
+    try {
+        j.at("ProductId").get_to(pi.productId_);
+    } catch (std::exception& e) {}
+
+    try {
+        j.at("DeviceId").get_to(pi.deviceId_);
+    } catch (std::exception& e) {}
+
+    try {
+        j.at("AppName").get_to(pi.appName_);
+    } catch (std::exception& e) {}
+
+    try {
+        j.at("AppVersion").get_to(pi.appVersion_);
+    } catch (std::exception& e) {}
+
+    try {
+        j.at("NabtoVersion").get_to(pi.nabtoVersion_);
+    } catch (std::exception& e) {}
+
+    try {
+        std::vector<std::string> modes = j["Modes"].get<std::vector<std::string> >();
+        for (auto m : modes) {
+            if (m == "Local") {
+                pi.modes_.insert(PairingMode::LOCAL);
+            } else if (m == "Password") {
+                pi.modes_.insert(PairingMode::PASSWORD);
+            } else if (m == "Button") {
+                pi.modes_.insert(PairingMode::BUTTON);
             }
         }
-        catch (...)
-        {
-            std::cerr << "An unknown error occurred." << std::endl;
-        }
-        return status;
-    }
-    else
-    {
-        std::cout << "Action cancelled." << std::endl;
-        return true;
-    }
-    return false;
+    } catch (std::exception& e) {}
 }
+
+std::pair<IAMError, std::unique_ptr<PairingInfo> > get_pairing_info(
+    std::shared_ptr<nabto::client::Connection> connection)
+{
+    auto coap = connection->createCoap("GET", "/iam/pairing");
+    try {
+        coap->execute()->waitForResult();
+        int statusCode = coap->getResponseStatusCode();
+        int contentFormat = coap->getResponseContentFormat();
+        if (statusCode == 205 &&
+            contentFormat == CONTENT_FORMAT_APPLICATION_CBOR) {
+            std::vector<uint8_t> payload = coap->getResponsePayload();
+            nlohmann::json root = nlohmann::json::from_cbor(payload);
+            return std::make_pair(IAMError(), std::make_unique<PairingInfo>(root.get<PairingInfo>()));
+        }
+
+        return std::make_pair(IAMError(coap), nullptr);
+    } catch (nabto::client::NabtoException& e) {
+        return std::make_pair(IAMError(e), nullptr);
+    } catch (nlohmann::json::exception& e) {
+        return std::make_pair(IAMError(e), nullptr);
+    }
+}
+
 }

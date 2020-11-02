@@ -34,19 +34,26 @@ class DeviceInfo
 {
  public:
 
-    std::string GetFriendlyName() const
+    std::string getFriendlyName() const
     {
         std::stringstream ss;
-        ss << "[" << Index << "] " << ProductID << "." << DeviceID;
+        ss << "[" << index_ << "] " << productId_ << "." << deviceId_;
         return ss.str();
     }
 
-    int Index;
-    std::string DeviceID;
-    std::string ProductID;
-    std::string DeviceFingerprint;
-    std::string ServerConnectToken;
-    std::string DirectCandidate;
+    std::string getDeviceId() { return deviceId_; }
+    std::string getProductId() { return productId_; }
+    std::string getDeviceFingerprint() { return deviceFingerprint_; }
+    std::string getServerConnectToken() { return serverConnectToken_; }
+    std::string getDirectCandidate() { return directCandidate_; }
+    int getIndex() { return index_; }
+
+    int index_;
+    std::string deviceId_;
+    std::string productId_;
+    std::string deviceFingerprint_;
+    std::string serverConnectToken_;
+    std::string directCandidate_;
 };
 
 class ClientConfiguration {
