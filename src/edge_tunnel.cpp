@@ -327,8 +327,6 @@ int main(int argc, char** argv)
     options.add_options("IAM")
         ("users", "List all users on selected device.")
         ("roles", "List roles available on device.")
-        ("userid", "Specify the userid for a command", cxxopts::value<std::string>())
-        ("role", "Specify a role for a command", cxxopts::value<std::string>())
         ("get-me", "Get the user associated with the current connection.")
         ("get-user", "Get a user.")
         ("set-role", "Assign a role to a user.")
@@ -459,31 +457,19 @@ int main(int argc, char** argv)
             } else if (result.count("roles")) {
                 status = IAM::list_roles(connection);
             } else if (result.count("set-role")) {
-                if (!result.count("role")) {
-                    std::cerr << "--set-role requires the --role parameter." << std::endl;
-                } else if (!result.count("userid")) {
-                    std::cerr << "--set-role requires the --userid parameter." << std::endl;
-                } else {
-                    status = IAM::set_role_interactive(connection, result["userid"].as<std::string>(), result["role"].as<std::string>());
-                }
+                status = IAM::set_role_interactive(connection);
             } else if (result.count("delete-user")) {
-                if (!result.count("userid")) {
-                    std::cerr << "--delete-user requires the --userid parameter." << std::endl;
-                } else {
-                    status = IAM::delete_user(connection, result["userid"].as<std::string>());
-                }
+                status = IAM::delete_user_interactive(connection);
             } else if (result.count("get-user")) {
-                if (!result.count("userid")) {
-                    std::cerr << "--get-user requires the --userid parameter." << std::endl;
+                auto user = IAM::get_user_interactive(
+                    connection, result["userid"].as<std::string>());
+                if (user) {
+                    user->print();
+                    status = true;
                 } else {
-                    auto user = IAM::get_user_interactive(connection, result["userid"].as<std::string>());
-                    if (user) {
-                        user->print();
-                        status = true;
-                    } else {
-                        status = false;
-                    }
+                    status = false;
                 }
+
             } else if (result.count("get-me")) {
                 IAM::IAMError ec;
                 std::unique_ptr<IAM::User> user;

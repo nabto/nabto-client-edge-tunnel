@@ -5,6 +5,9 @@
 
 namespace IAM {
 
+std::pair<IAMError, std::string> pick_role_interactive(std::shared_ptr<nabto::client::Connection> connection, const std::string& message);
+std::pair<IAMError, std::string> pick_user_interactive(std::shared_ptr<nabto::client::Connection> connection, const std::string& message);
+
 
 bool yn_prompt(const std::string &message)
 {
@@ -104,7 +107,7 @@ std::unique_ptr<User> get_user_interactive(std::shared_ptr<nabto::client::Connec
                 nlohmann::json user = nlohmann::json::from_cbor(cbor);
                 auto decoded = User::create(user);
                 return decoded;
-                
+
             }
 
             case 403:
@@ -140,7 +143,7 @@ bool list_roles(std::shared_ptr<nabto::client::Connection> connection)
     std::set<std::string> roles;
     std::tie(ec, roles) = get_roles(connection);
     if (ec.ok()) {
-        size_t i = 1;        
+        size_t i = 1;
         for (auto role : roles) {
             std::cout << "[" << i << "]: " << role << std::endl;
             i++;
@@ -172,69 +175,44 @@ std::string random_string(size_t n)
 }
 
 
-bool set_role_interactive(std::shared_ptr<nabto::client::Connection> connection,
-              const std::string &user, const std::string &role)
+bool set_role_interactive(std::shared_ptr<nabto::client::Connection> connection)
 {
-    std::stringstream pathStream{};
-    pathStream << "/iam/users/" << user << "/role/" << role;
-    const std::string &path = pathStream.str();
+    IAMError ec;
+    std::string username;
+    std::string role;
+
+    std::tie(ec, username) = pick_user_interactive(connection, "Choose a user to assign a role");
+
+    if (!ec.ok()) {
+        ec.printError();
+        return false;
+    }
+
+    std::tie(ec, role) = pick_role_interactive(connection, "Choose a role to assign to the user " + username);
+    if (!ec.ok()) {
+        ec.printError();
+        return false;
+    }
+
+
+
+    std::stringstream path;
+    path << "/iam/users/" << username << "/role/" << role;
 
     char answer;
     std::stringstream message{};
-    message << "Assign the role \"" << role << "\" to the user \"" << user << "\"? ";
+    message << "Assign the role \"" << role << "\" to the user \"" << username << "\"? ";
     bool yes = yn_prompt(message.str());
 
     if (yes)
     {
-        bool status = false;
-        auto coap = connection->createCoap("PUT", path);
-        try
-        {
-            coap->execute()->waitForResult();
-            int responseCode = coap->getResponseStatusCode();
-            switch (responseCode)
-            {
-                case 204:
-                {
-                    std::cout << "Success. Assigned the role: " << role << " to the user with the id: " << user << std::endl;
-                    status = true;
-                    break;
-                }
-
-                case 403:
-                {
-                    std::cout << "The request was denied." << std::endl;
-                    print_error_access_denied();
-                    break;
-                }
-                case 404:
-                {
-                    std::cout << "The user or role does not exists" << std::endl;
-                    break;
-                }
-
-                case 500:
-                {
-                    std::cout
-                        << "The request returned error 500.\n"
-                        << "Are you sure you typed in the right role id and user id?"
-                        << std::endl;
-                    break;
-                }
-
-                default:
-                {
-                    print_coap_error(path, responseCode);
-                    break;
-                }
-            }
+        IAMError ec = set_role(connection, username, role);
+        if (ec.ok()) {
+            std::cout << "Success. Assigned the role: " << role << " to the user with the id: " << username << std::endl;
+            return true;
         }
-        catch (...)
-        {
-            std::cerr << "An unknown error occurred." << std::endl;
-        }
-
-        return status;
+        ec.printError();
+        return false;
     }
     else
     {
@@ -244,81 +222,71 @@ bool set_role_interactive(std::shared_ptr<nabto::client::Connection> connection,
 }
 
 
-std::pair<IAMError, std::unique_ptr<User> > pick_user_interactive(std::shared_ptr<nabto::client::Connection> connection) 
+std::pair<IAMError, std::string> pick_user_interactive(std::shared_ptr<nabto::client::Connection> connection, const std::string& message)
 {
     std::set<std::string> users;
     IAMError ec;
     std::tie(ec, users) = get_users(connection);
     if (!ec.ok()) {
-        return std::make_pair(ec, nullptr);
+        return std::make_pair(ec, "");
     } else {
         std::vector<std::string> us;
         std::copy(users.begin(), users.end(), std::back_inserter(us));
+        std::cout << message << std::endl;
         for (size_t i = 0; i < us.size(); i++) {
             std::cout << "[" << i << "] " << us[i] << std::endl;
         }
         size_t choice = 0;
         while (true) {
-            std::cout << "pick a user between 0 and " <<  us.size() << std::endl;
+            std::cout << "User: ";
             std::cin >> choice;
             if (choice < us.size()) {
                 break;
+            } else {
+                std::cout << "Invalid choice" << std::endl;
             }
         }
-        return get_user(connection, us[choice]);
+        return std::make_pair(IAMError(), us[choice]);
     }
 }
 
-
-bool delete_user(std::shared_ptr<nabto::client::Connection> connection,
-                 const std::string &user)
+bool delete_user_interactive(std::shared_ptr<nabto::client::Connection> connection)
 {
-    std::stringstream pathStream{};
-    pathStream << "/iam/users/" << user;
-    const std::string &path = pathStream.str();
+
+    IAMError ec;
+    std::string username;
+    std::tie(ec, username) = pick_user_interactive(connection, "Pick a user to delete");
+    if (!ec.ok()) {
+        ec.printError();
+        return false;
+    }
+    std::stringstream path;
+    path << "/iam/users/" << username;
 
     std::stringstream message{};
-    message << "Delete the user \"" << user << "\"? ";
+    message << "Delete the user \"" << username << "\"? ";
     bool yes = yn_prompt(message.str());
     if (yes)
     {
         bool status = false;
-        auto coap = connection->createCoap("DELETE", path);
+        auto coap = connection->createCoap("DELETE", path.str());
         try
         {
             coap->execute()->waitForResult();
             int responseCode = coap->getResponseStatusCode();
-            switch(responseCode)
-            {
-                case 202:
-                {
-                    std::cout << "Success." << std::endl;
-                    status = true;
-                    break;
-                }
-
-                case 403:
-                {
-                    std::cout
-                        << "The request to DELETE from"
-                        << path << "was denied."
-                        << std::endl;
-                    print_error_access_denied();
-                    break;
-                }
-
-                default:
-                {
-                    print_coap_error(path, responseCode);
-                    break;
-                }
+            if (responseCode == 202) {
+                std::cout << "Success." << std::endl;
+                return true;
             }
+            // failed
+            IAMError ec(coap);
+            ec.printError();
         }
         catch (...)
         {
             std::cerr << "An unknown error occurred." << std::endl;
         }
-        return status;
+        return false;
     }
     else
     {
@@ -430,7 +398,7 @@ bool create_user_interactive(std::shared_ptr<nabto::client::Connection> connecti
         std::cout << "Pairing String:  " << pairingString.str() << std::endl;
     }
 
-    return true;    
+    return true;
 }
 
 
