@@ -33,65 +33,12 @@ static bool is_char_case_insensitive(char Subject, char Character) {
            (Subject == Character || Subject == (Character - 32));
 }
 
-static std::string pairingModeAsString(IAM::PairingMode mode) {
-    if (mode == IAM::PairingMode::BUTTON) {
-        return "Button";
-    } else if (mode == IAM::PairingMode::PASSWORD) {
-        return "Password";
-    } else if (mode == IAM::PairingMode::LOCAL) {
-        return "Local";
-    }
-    return "unknown";
-}
-
-static IAM::PairingMode get_pairing_mode(std::shared_ptr<nabto::client::Connection> connection)
-{
-
-    IAM::IAMError ec;
-    std::unique_ptr<IAM::PairingInfo> pi;
-    std::tie(ec, pi) = IAM::get_pairing_info(connection);
-
-    if (ec.ok()) {
-        if (pi->getModes().count(IAM::PairingMode::LOCAL)) {
-            return IAM::PairingMode::LOCAL;
-        }
-
-        if (pi->getModes().count(IAM::PairingMode::PASSWORD)) {
-            return IAM::PairingMode::PASSWORD;
-        }
-
-        if (pi->getModes().count(IAM::PairingMode::BUTTON)) {
-            return IAM::PairingMode::BUTTON;
-        }
-    }
-    ec.printError();
-    return IAM::PairingMode::NONE;
-}
-
-static bool button_pair(std::shared_ptr<nabto::client::Connection> connection, const std::string& name)
-{
-    auto coap = connection->createCoap("POST", "/iam/pairing/button");
-    std::cout << "Waiting for the user to press a button on the device." << std::endl;
-    nlohmann::json root;
-    root["Name"] = name;
-    coap->setRequestPayload(IAM::CONTENT_FORMAT_APPLICATION_CBOR, nlohmann::json::to_cbor(root));
-    coap->execute()->waitForResult();
-    if (coap->getResponseStatusCode() != 201) {
-        std::string reason;
-        auto buffer = coap->getResponsePayload();
-        reason = std::string(reinterpret_cast<char*>(buffer.data()), buffer.size());
-        std::cout << "Could not pair with the device status: " << coap->getResponseStatusCode() << " " << reason << std::endl;
-        return false;
-    }
-    return true;
-}
-
-static bool local_pair(std::shared_ptr<nabto::client::Connection> connection, const std::string& name)
+static bool local_pair_open(std::shared_ptr<nabto::client::Connection> connection, const std::string& name)
 {
     nlohmann::json root;
     root["Username"] = name;
 
-    auto coap = connection->createCoap("POST", "/iam/pairing/local");
+    auto coap = connection->createCoap("POST", "/iam/pairing/local-open");
     coap->setRequestPayload(IAM::CONTENT_FORMAT_APPLICATION_CBOR, nlohmann::json::to_cbor(root));
     coap->execute()->waitForResult();
     if (coap->getResponseStatusCode() != 201) {
@@ -116,7 +63,7 @@ static bool password_pair_password(std::shared_ptr<nabto::client::Connection> co
         return false;
     }
 
-    auto coap = connection->createCoap("POST", "/iam/pairing/password");
+    auto coap = connection->createCoap("POST", "/iam/pairing/password-open");
     coap->setRequestPayload(IAM::CONTENT_FORMAT_APPLICATION_CBOR, nlohmann::json::to_cbor(root));
     coap->execute()->waitForResult();
     if (coap->getResponseStatusCode() != 201) {
@@ -131,7 +78,7 @@ static bool password_pair_password(std::shared_ptr<nabto::client::Connection> co
 
 
 
-static bool password_pair(std::shared_ptr<nabto::client::Connection> connection, const std::string& name)
+static bool password_pair_open(std::shared_ptr<nabto::client::Connection> connection, const std::string& name)
 {
     std::string password;
     std::cout << "enter the password which is used to pair with the device." << std::endl;
@@ -249,17 +196,12 @@ bool interactive_pair(std::shared_ptr<nabto::client::Context> Context, const std
         std::cerr << "Cannot Get CoAP /iam/pairing" << std::endl;
         return false;
     }
-    IAM::PairingMode mode = get_pairing_mode(connection);
-    if (pi->getModes().count(IAM::PairingMode::LOCAL)) {
-         if (!local_pair(connection, userName)) {
+    if (pi->getModes().count(IAM::PairingMode::LOCAL_OPEN)) {
+         if (!local_pair_open(connection, userName)) {
             return false;
         }
-    } else if (pi->getModes().count(IAM::PairingMode::PASSWORD)) {
-        if (!password_pair(connection, userName)) {
-            return false;
-        }
-    } else if (pi->getModes().count(IAM::PairingMode::BUTTON)) {
-        if (!button_pair(connection, userName)) {
+    } else if (pi->getModes().count(IAM::PairingMode::PASSWORD_OPEN)) {
+        if (!password_pair_open(connection, userName)) {
             return false;
         }
     } else if (pi->getModes().count(IAM::PairingMode::PASSWORD_INVITE)) {
@@ -386,11 +328,11 @@ bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const std::string& 
         }
     } else {
         // do autonomous pairing
-        if (pi->getModes().count(IAM::PairingMode::LOCAL)) {
-            if(!local_pair(connection, usernameAutonomous)) {
+        if (pi->getModes().count(IAM::PairingMode::LOCAL_OPEN)) {
+            if(!local_pair_open(connection, usernameAutonomous)) {
                 return false;
             }
-        } else if (pi->getModes().count(IAM::PairingMode::PASSWORD)) {
+        } else if (pi->getModes().count(IAM::PairingMode::PASSWORD_OPEN)) {
             if (!password_pair_password(connection, usernameAutonomous, pairingPassword)) {
                 return false;
             }
@@ -457,16 +399,12 @@ bool direct_pair(std::shared_ptr<nabto::client::Context> Context, const std::str
         return false;
     }
 
-    if (pi->getModes().count(IAM::PairingMode::LOCAL)) {
-        if(!local_pair(connection, userName)) {
+    if (pi->getModes().count(IAM::PairingMode::LOCAL_OPEN)) {
+        if(!local_pair_open(connection, userName)) {
             return false;
         }
-    } else if (pi->getModes().count(IAM::PairingMode::PASSWORD)) {
-        if (!password_pair(connection, userName)) {
-            return false;
-        }
-    } else if (pi->getModes().count(IAM::PairingMode::BUTTON)) {
-        if (!button_pair(connection, userName)) {
+    } else if (pi->getModes().count(IAM::PairingMode::PASSWORD_OPEN)) {
+        if (!password_pair_open(connection, userName)) {
             return false;
         }
     } else {

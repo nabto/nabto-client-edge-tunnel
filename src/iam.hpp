@@ -49,9 +49,9 @@ const static int CONTENT_FORMAT_APPLICATION_CBOR = 60; // rfc 7059
 
 enum class PairingMode {
     NONE,
-    BUTTON,
-    PASSWORD,
-    LOCAL,
+    BUTTON_OPEN,
+    PASSWORD_OPEN,
+    LOCAL_OPEN,
     PASSWORD_INVITE
 };
 

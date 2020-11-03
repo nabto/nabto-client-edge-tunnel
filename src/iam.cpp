@@ -254,12 +254,12 @@ void from_json(const json& j, PairingInfo& pi)
     try {
         std::vector<std::string> modes = j["Modes"].get<std::vector<std::string> >();
         for (auto m : modes) {
-            if (m == "Local") {
-                pi.modes_.insert(PairingMode::LOCAL);
-            } else if (m == "Password") {
-                pi.modes_.insert(PairingMode::PASSWORD);
-            } else if (m == "Button") {
-                pi.modes_.insert(PairingMode::BUTTON);
+            if (m == "LocalOpen") {
+                pi.modes_.insert(PairingMode::LOCAL_OPEN);
+            } else if (m == "PasswordOpen") {
+                pi.modes_.insert(PairingMode::PASSWORD_OPEN);
+            } else if (m == "ButtonOpen") {
+                pi.modes_.insert(PairingMode::BUTTON_OPEN);
             } else if (m == "PasswordInvite") {
                 pi.modes_.insert(PairingMode::PASSWORD_INVITE);
             }
