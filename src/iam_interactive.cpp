@@ -9,6 +9,38 @@ std::pair<IAMError, std::string> pick_role_interactive(std::shared_ptr<nabto::cl
 std::pair<IAMError, std::string> pick_user_interactive(std::shared_ptr<nabto::client::Connection> connection, const std::string& message);
 
 
+int interactive_choice(const std::string message, size_t min, size_t maxPlusOne)
+{
+    if (min == maxPlusOne) {
+        return -1;
+    }
+
+    size_t max = maxPlusOne - 1;
+
+    do {
+        int choice = -1;
+        std::string input;
+        std::cout << message;
+        std::cin >> input;
+        if (input == "q") {
+            return -1;
+        }
+        try {
+            choice = std::atoi(input.c_str());
+
+            if (choice >= min && choice < maxPlusOne) {
+                return choice;
+            }
+
+        } catch (std::exception& e) {
+        }
+        std::cout << input << " is not a number between " << min << " and "
+                  << max << std::endl;
+    } while(!std::cin.fail());
+
+    return -1;
+}
+
 bool yn_prompt(const std::string &message)
 {
     char answer = 0;
@@ -233,18 +265,13 @@ std::pair<IAMError, std::string> pick_user_interactive(std::shared_ptr<nabto::cl
         std::vector<std::string> us;
         std::copy(users.begin(), users.end(), std::back_inserter(us));
         std::cout << message << std::endl;
+        std::cout << "[q] Quit" << std::endl;
         for (size_t i = 0; i < us.size(); i++) {
             std::cout << "[" << i << "] " << us[i] << std::endl;
         }
-        size_t choice = 0;
-        while (true) {
-            std::cout << "User: ";
-            std::cin >> choice;
-            if (choice < us.size()) {
-                break;
-            } else {
-                std::cout << "Invalid choice" << std::endl;
-            }
+        int choice = interactive_choice("Choose a user: ", 0, us.size());
+        if (choice == -1) {
+            return std::make_pair(IAMError("Invalid user choice"), "");
         }
         return std::make_pair(IAMError(), us[choice]);
     }
@@ -313,22 +340,15 @@ std::pair<IAMError, std::string> pick_role_interactive(std::shared_ptr<nabto::cl
         std::vector<std::string> rs;
         std::copy(roles.begin(), roles.end(), std::back_inserter(rs));
         std::cout << message << std::endl;
-
+        std::cout << "[q] Quit" << std::endl;
         for (size_t i = 0; i < rs.size(); i++) {
             std::cout << "[" << i << "] " << rs[i] << std::endl;
         }
-        size_t role = 0;
-        while (true) {
-            size_t max = rs.size() - 1;
-            std::cout << "Role 0 - " << max << ": ";
-            std::cin >> role;
-            if (role < rs.size()) {
-                break;
-            } else {
-                std::cerr << role << " is not a valid choice" << std::endl;
-            }
+        int choice = interactive_choice("Choose a role: ", 0, rs.size());
+        if(choice == -1) {
+            return std::make_pair(IAMError("Invalid role choice"), "");
         }
-        return std::make_pair(IAMError(), rs[role]);
+        return std::make_pair(IAMError(), rs[choice]);
     }
 }
 
@@ -388,7 +408,7 @@ bool create_user_interactive(std::shared_ptr<nabto::client::Connection> connecti
         std::tie(ec, pi) = get_pairing_info(connection);
 
         std::stringstream pairingString;
-        pairingString << "p=" << pi->getProductId() << ",d=" << pi->getDeviceId() << ",n=" << user->getUsername() << ",pwd=" << password << ",sct=" << user->getServerConnectToken();
+        pairingString << "p=" << pi->getProductId() << ",d=" << pi->getDeviceId() << ",u=" << user->getUsername() << ",pwd=" << password << ",sct=" << user->getServerConnectToken();
 
         std::cout << "Created a new user in the system" << std::endl;
         std::cout << "Username:        " << user->getUsername() << std::endl;

@@ -43,6 +43,12 @@ IAMError::IAMError(std::exception& e)
     message_ = e.what();
 }
 
+IAMError::IAMError(const std::string& message)
+{
+    ok_ = false;
+    message_ = message;
+}
+
 bool IAMError::ok() { return ok_; }
 
 void IAMError::printError()
@@ -254,6 +260,8 @@ void from_json(const json& j, PairingInfo& pi)
                 pi.modes_.insert(PairingMode::PASSWORD);
             } else if (m == "Button") {
                 pi.modes_.insert(PairingMode::BUTTON);
+            } else if (m == "PasswordInvite") {
+                pi.modes_.insert(PairingMode::PASSWORD_INVITE);
             }
         }
     } catch (std::exception& e) {}

@@ -14,11 +14,11 @@ namespace common {
 
 class Scanner {
  public:
-    static std::vector<std::tuple<std::string,std::string> > scan(std::shared_ptr<nabto::client::Context> ctx, std::chrono::milliseconds timeout) {
+    static std::vector<std::tuple<std::string,std::string> > scan(std::shared_ptr<nabto::client::Context> ctx, std::chrono::milliseconds timeout, std::string subtype = "") {
 
         // We put the found devices into a set such that we can remove ipv4/ipv6 duplicates.
         std::set<std::tuple<std::string, std::string> > localDevices;
-        auto mdnsResolver = ctx->createMdnsResolver("");
+        auto mdnsResolver = ctx->createMdnsResolver(subtype);
 
         std::thread t([mdnsResolver, timeout]() { std::this_thread::sleep_for(timeout); mdnsResolver->stop(); });
 

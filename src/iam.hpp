@@ -17,6 +17,7 @@ class IAMError {
     IAMError(std::shared_ptr<nabto::client::Coap> coap);
     IAMError(nabto::client::NabtoException e);
     IAMError(std::exception& e);
+    IAMError(const std::string& message);
 
     bool ok();
     void printError();
@@ -50,7 +51,8 @@ enum class PairingMode {
     NONE,
     BUTTON,
     PASSWORD,
-    LOCAL
+    LOCAL,
+    PASSWORD_INVITE
 };
 
 class PairingInfo {
