@@ -167,11 +167,15 @@ std::pair<IAMError, std::set<std::string> > get_roles(
 
 IAMError set_role(std::shared_ptr<nabto::client::Connection> connection, const std::string &user, const std::string &role)
 {
-    std::stringstream pathStream{};
-    pathStream << "/iam/users/" << user << "/role/" << role;
-    const std::string &path = pathStream.str();
+    std::stringstream path;
+    path << "/iam/users/" << user << "/role";
+    nlohmann::json root;
+    root = role;
+    std::vector<uint8_t> cbor = nlohmann::json::to_cbor(root);
+
     try {
-        auto coap = connection->createCoap("PUT", path);
+        auto coap = connection->createCoap("PUT", path.str());
+        coap->setRequestPayload(CONTENT_FORMAT_APPLICATION_CBOR, cbor);
         coap->execute()->waitForResult();
         int responseCode = coap->getResponseStatusCode();
         if(responseCode == 204) {
