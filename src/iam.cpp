@@ -266,6 +266,10 @@ void from_json(const json& j, PairingInfo& pi)
                 pi.modes_.insert(PairingMode::BUTTON_OPEN);
             } else if (m == "PasswordInvite") {
                 pi.modes_.insert(PairingMode::PASSWORD_INVITE);
+            } else if (m == "LocalInvite") {
+                pi.modes_.insert(PairingMode::LOCAL_INVITE);
+            } else if (m == "LocalInitial") {
+                pi.modes_.insert(PairingMode::LOCAL_INITIAL);
             }
         }
     } catch (std::exception& e) {}

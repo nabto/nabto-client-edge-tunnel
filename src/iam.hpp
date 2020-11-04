@@ -52,7 +52,9 @@ enum class PairingMode {
     BUTTON_OPEN,
     PASSWORD_OPEN,
     LOCAL_OPEN,
-    PASSWORD_INVITE
+    PASSWORD_INVITE,
+    LOCAL_INVITE,
+    LOCAL_INITIAL
 };
 
 class PairingInfo {
