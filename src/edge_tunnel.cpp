@@ -461,25 +461,9 @@ int main(int argc, char** argv)
             } else if (result.count("delete-user")) {
                 status = IAM::delete_user_interactive(connection);
             } else if (result.count("get-user")) {
-                auto user = IAM::get_user_interactive(
-                    connection, result["userid"].as<std::string>());
-                if (user) {
-                    user->print();
-                    status = true;
-                } else {
-                    status = false;
-                }
-
+                status = IAM::get_user_interactive(connection);
             } else if (result.count("get-me")) {
-                IAM::IAMError ec;
-                std::unique_ptr<IAM::User> user;
-                std::tie(ec, user) = IAM::get_me(connection);
-                if (user) {
-                    user->print();
-                    status = true;
-                } else {
-                    status = false;
-                }
+                status = IAM::get_me_interactive(connection);
             } else if (result.count("create-user")) {
                 status = IAM::create_user_interactive(connection);
             }

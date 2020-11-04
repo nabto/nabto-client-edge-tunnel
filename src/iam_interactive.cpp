@@ -119,50 +119,39 @@ bool list_users(std::shared_ptr<nabto::client::Connection> connection)
     return result;
 }
 
-std::unique_ptr<User> get_user_interactive(std::shared_ptr<nabto::client::Connection> connection, const std::string& username)
+bool get_me_interactive(std::shared_ptr<nabto::client::Connection> connection)
 {
-    bool result = false;
-    std::string path = "/iam/users/" + username;
-    auto coap = connection->createCoap("GET", path);
-
-    try
-    {
-        coap->execute()->waitForResult();
-        int responseCode = coap->getResponseStatusCode();
-        switch (responseCode)
-        {
-            case 205:
-            {
-                auto cbor = coap->getResponsePayload();
-
-
-                nlohmann::json user = nlohmann::json::from_cbor(cbor);
-                auto decoded = User::create(user);
-                return decoded;
-
-            }
-
-            case 403:
-            {
-                std::cout
-                    << "The request to list roles (" << path << ")"
-                    << " was denied." << std::endl;
-                print_error_access_denied();
-                break;
-            }
-
-            default:
-            {
-                print_coap_error(path, responseCode);
-                break;
-            }
-        }
+    IAMError ec;
+    std::unique_ptr<User> user;
+    std::tie(ec, user) = get_me(connection);
+    if (!ec.ok()) {
+        ec.printError();
+        return false;
     }
-    catch (...)
-    {
-        std::cerr << "Cannot get the user " << username << std::endl;
+
+    user->print();
+    return true;
+}
+
+bool get_user_interactive(std::shared_ptr<nabto::client::Connection> connection)
+{
+    std::string username;
+    IAMError ec;
+    std::tie(ec, username) = pick_user_interactive(connection, "Pick a user");
+    if (!ec.ok()) {
+        ec.printError();
+        return false;    
     }
-    return nullptr;
+
+    std::unique_ptr<User> user;
+    std::tie(ec, user) = get_user(connection, username);
+    if (!ec.ok()) {
+        ec.printError();
+        return false;
+    }
+
+    user->print();
+    return true;
 }
 
 bool list_roles(std::shared_ptr<nabto::client::Connection> connection)
