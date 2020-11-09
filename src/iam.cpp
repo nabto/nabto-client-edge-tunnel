@@ -294,4 +294,19 @@ std::pair<IAMError, std::unique_ptr<PairingInfo> > get_pairing_info(
     }
 }
 
+std::string pairingModeAsString(PairingMode mode)
+{
+    if (mode == PairingMode::LOCAL_INITIAL) {
+        return "Local Initial";
+    } else  if (mode == PairingMode::LOCAL_OPEN) {
+        return "Local Open";
+    } else if (mode == PairingMode::PASSWORD_INVITE) {
+        return "Password Invite";
+    } else if (mode == PairingMode::PASSWORD_OPEN) {
+        return "Password Open";
+    } else {
+        return "None";
+    }
+}
+
 }

@@ -319,7 +319,7 @@ int main(int argc, char** argv)
         ;
 
     options.add_options("Pairing")
-        ("pair", "Pair the client with a tcptunnel device interactively")
+        ("pair", "Pair the client with a tcp tunnel device running on the local network interactively")
         ("pair-string", "Pair with a tcp tunnel device using a pairing string", cxxopts::value<std::string>())
         ("pair-direct", "Pair with a tcp tunnel device directly using its ip or hostname", cxxopts::value<std::string>())
         ;
@@ -338,7 +338,6 @@ int main(int argc, char** argv)
         ("services", "List available services on the device")
         ("service", "Create a tunnel to this service. The default local port is an ephemeral port. A specific local port can be used using the syntax --service <service>:<port> e.g. --service ssh:4242 to establish a tunnel to the ssh service and listen for connections to it on the local TCP port 4242", cxxopts::value<std::vector<std::string> >(services))
         ;
-
 
     try {
         auto result = options.parse(argc, argv);
@@ -390,26 +389,20 @@ int main(int argc, char** argv)
         context->setLogger(std::make_shared<MyLogger>());
         context->setLogLevel(result["log-level"].as<std::string>());
 
-        std::string userName = "default";
-        const char* user = getenv("USER");
-        if (user != NULL) {
-            userName = std::string(user);
-        }
-
         if (result.count("pair")) {
-            if (!interactive_pair(context, userName)) {
+            if (!interactive_pair(context)) {
                 return 1;
             }
             return 0;
         }
         else if (result.count("pair-string")) {
-            if (!string_pair(context, userName, result["pair-string"].as<std::string>())) {
+            if (!string_pair(context, result["pair-string"].as<std::string>())) {
                 return 1;
             }
             return 0;
         }
         else if (result.count("pair-direct")) {
-            if (!direct_pair(context, userName, result["pair-direct"].as<std::string>())) {
+            if (!direct_pair(context, result["pair-direct"].as<std::string>())) {
                 return 1;
             }
             return 0;

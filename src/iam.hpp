@@ -55,6 +55,8 @@ enum class PairingMode {
     LOCAL_INITIAL
 };
 
+std::string pairingModeAsString(PairingMode mode);
+
 class PairingInfo {
  public:
     std::string getNabtoVersion() { return nabtoVersion_; }
