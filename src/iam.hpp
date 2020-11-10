@@ -21,6 +21,7 @@ class IAMError {
 
     bool ok();
     void printError();
+    void printError(const std::string& action);
 
  private:
     bool ok_ = false;
@@ -71,6 +72,19 @@ class PairingInfo {
     std::set<PairingMode> modes_;
 };
 
+class Settings {
+ public:
+    bool getLocalOpenPairing() { return localOpenPairing_; }
+    bool getPasswordOpenPairing() { return passwordOpenPairing_; }
+    std::string getPasswordOpenServerConnectToken() { return passwordOpenServerConnectToken_; }
+    std::string getPasswordOpenPassword() { return passwordOpenPassword_; }
+
+    bool localOpenPairing_;
+    bool passwordOpenPairing_;
+    std::string passwordOpenServerConnectToken_;
+    std::string passwordOpenPassword_;
+};
+
 std::pair<IAMError, std::unique_ptr<PairingInfo> > get_pairing_info(std::shared_ptr<nabto::client::Connection> connection);
 std::pair<IAMError, std::set<std::string> > get_users(std::shared_ptr<nabto::client::Connection> connection);
 std::pair<IAMError, std::unique_ptr<User> > get_user(std::shared_ptr<nabto::client::Connection> connection, const std::string& username);
@@ -80,5 +94,8 @@ IAMError set_password(std::shared_ptr<nabto::client::Connection> connection, con
 std::pair<IAMError, std::unique_ptr<User> > create_user(std::shared_ptr<nabto::client::Connection> connection, const std::string &username);
 std::pair<IAMError, std::unique_ptr<User> > get_me(std::shared_ptr<nabto::client::Connection> connection);
 std::pair<IAMError, std::unique_ptr<PairingInfo> > get_pairing_info(std::shared_ptr<nabto::client::Connection> connection);
+IAMError set_settings_password_open_pairing(std::shared_ptr<nabto::client::Connection> connection, bool enabled);
+IAMError set_settings_local_open_pairing(std::shared_ptr<nabto::client::Connection> connection, bool enabled);
+std::pair<IAMError, std::unique_ptr<Settings> > get_settings(std::shared_ptr<nabto::client::Connection> connection);
 
 } // namespace
