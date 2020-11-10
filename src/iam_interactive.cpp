@@ -411,4 +411,51 @@ bool create_user_interactive(std::shared_ptr<nabto::client::Connection> connecti
 }
 
 
+bool configure_open_pairing_interactive(std::shared_ptr<nabto::client::Connection> connection)
+{
+    std::cout << "Configuring open pairing." << std::endl;
+    std::cout << "Open pairing allows users to register themselves in the device." << std::endl;
+    
+    bool localOpenPairing = yn_prompt("Allow Local Open Pairing");
+    bool passwordOpenPairing = yn_prompt("Allow Password Open Pairing");
+
+    IAMError ec;
+    ec = set_settings_local_open_pairing(connection, localOpenPairing);
+    if (!ec.ok()) {
+        ec.printError("Set local open pairing");
+        return false;
+    }
+
+    ec = set_settings_password_open_pairing(connection, passwordOpenPairing);
+    if (!ec.ok()) {
+        ec.printError("Set password open pairing");
+        return false;
+    }
+
+    if (passwordOpenPairing) {
+        // create a pairing string
+        std::shared_ptr<PairingInfo> pi;
+        std::tie(ec, pi) = get_pairing_info(connection);
+        if (!ec.ok()) {
+            ec.printError("Get pairing info");
+            return false;
+        }
+        std::shared_ptr<Settings> s;
+        std::tie(ec, s) = get_settings(connection);
+        if (!ec.ok()) {
+            return false;
+        }
+
+        std::stringstream ss;
+        ss << "p=" << pi->getProductId() << ",d=" << pi->getDeviceId() << ",pwd=" << s->getPasswordOpenPassword() << ",sct=" << s->getPasswordOpenServerConnectToken();
+        std::cout << "To pair with the device using the password open pairing method use the following information " << std::endl;
+        std::cout << "# Product Id:                          " << pi->getProductId() << std::endl;
+        std::cout << "# Device Id:                           " << pi->getDeviceId() << std::endl;
+        std::cout << "# Password Open Password:              " << s->getPasswordOpenPassword() << std::endl;
+        std::cout << "# Password Open Server Connect Token:  " << s->getPasswordOpenServerConnectToken() << std::endl;
+        std::cout << "# Password Open Pairing String:        " << ss.str() << std::endl;
+    }
+    return true;
+}
+
 }

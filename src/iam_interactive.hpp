@@ -12,5 +12,6 @@ bool delete_user_interactive(std::shared_ptr<nabto::client::Connection> connecti
 bool get_user_interactive(std::shared_ptr<nabto::client::Connection> connection);
 bool get_me_interactive(std::shared_ptr<nabto::client::Connection> connection);
 bool create_user_interactive(std::shared_ptr<nabto::client::Connection> connection);
+bool configure_open_pairing_interactive(std::shared_ptr<nabto::client::Connection> connection);
 
 }

@@ -331,7 +331,8 @@ int main(int argc, char** argv)
         ("get-user", "Get a user.")
         ("set-role", "Assign a role to a user.")
         ("delete-user", "Delete a user on device.")
-        ("create-user", "Create a new interactively in the device.")
+        ("create-user", "Create a user new interactively in the device.")
+        ("open-pairing", "Configure pairing where users can register themselves in the device.")
         ;
 
     options.add_options("TCP Tunnelling")
@@ -416,7 +417,8 @@ int main(int argc, char** argv)
                  result.count("delete-user") ||
                  result.count("get-user") ||
                  result.count("get-me") ||
-                 result.count("create-user"))
+                 result.count("create-user") ||
+                 result.count("open-pairing"))
 
         {
             // For all these commands we need a paired device.
@@ -459,6 +461,8 @@ int main(int argc, char** argv)
                 status = IAM::get_me_interactive(connection);
             } else if (result.count("create-user")) {
                 status = IAM::create_user_interactive(connection);
+            } else if (result.count("open-pairing")) {
+                status = IAM::configure_open_pairing_interactive(connection);
             }
 
             connection->close()->waitForResult();

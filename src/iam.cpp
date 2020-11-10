@@ -65,6 +65,23 @@ void IAMError::printError()
     }
 }
 
+void IAMError::printError(const std::string& action) {
+    std::cerr<< action << " ";
+    if (ok_) {
+        std::cerr << " succeeded.";
+    } else {
+        std::cerr << " failed.";
+        if (!message_.empty()) {
+            std::cerr << " Message: " << message_ << std::endl;
+        }
+        if (statusCode_ != 0) {
+            std::cerr << " Status Code: " << statusCode_ << std::endl;
+        }
+    }
+
+    std::cout << std::endl;
+}
+
 void from_json(const json &j, User &user) {
     // name is mandatory
     j.at("Username").get_to(user.username_);
@@ -271,6 +288,25 @@ void from_json(const json& j, PairingInfo& pi)
     } catch (std::exception& e) {}
 }
 
+void from_json(const json& j, Settings& s)
+{
+    try {
+        j.at("LocalOpenPairing").get_to(s.localOpenPairing_);
+    } catch (std::exception& e) {}
+
+    try {
+        j.at("PasswordOpenPairing").get_to(s.passwordOpenPairing_);
+    } catch (std::exception& e) {}
+
+    try {
+        j.at("PasswordOpenServerConnectToken").get_to(s.passwordOpenServerConnectToken_);
+    } catch (std::exception& e) {}
+
+     try {
+        j.at("PasswordOpenPassword").get_to(s.passwordOpenPassword_);
+    } catch (std::exception& e) {}
+}
+
 std::pair<IAMError, std::unique_ptr<PairingInfo> > get_pairing_info(
     std::shared_ptr<nabto::client::Connection> connection)
 {
@@ -306,6 +342,66 @@ std::string pairingModeAsString(PairingMode mode)
         return "Password Open";
     } else {
         return "None";
+    }
+}
+
+IAMError set_settings_password_open_pairing(std::shared_ptr<nabto::client::Connection> connection, bool enabled)
+{
+    auto coap = connection->createCoap("PUT", "/iam/settings/PasswordOpenPairing");
+    try {
+        nlohmann::json root;
+        root = enabled;
+        std::vector<uint8_t> cbor = nlohmann::json::to_cbor(root);
+        coap->setRequestPayload(CONTENT_FORMAT_APPLICATION_CBOR, cbor);
+        coap->execute()->waitForResult();
+        int statusCode = coap->getResponseStatusCode();
+        if (statusCode == 204) {
+            return IAMError();
+        }
+        return IAMError(coap);
+    } catch (nabto::client::NabtoException& e) {
+        return IAMError(e);
+    }
+}
+
+IAMError set_settings_local_open_pairing(std::shared_ptr<nabto::client::Connection> connection, bool enabled)
+{
+    auto coap = connection->createCoap("PUT", "/iam/settings/LocalOpenPairing");
+    try {
+        nlohmann::json root;
+        root = enabled;
+        std::vector<uint8_t> cbor = nlohmann::json::to_cbor(root);
+        coap->setRequestPayload(CONTENT_FORMAT_APPLICATION_CBOR, cbor);
+        coap->execute()->waitForResult();
+        int statusCode = coap->getResponseStatusCode();
+        if (statusCode == 204) {
+            return IAMError();
+        }
+        return IAMError(coap);
+    } catch (nabto::client::NabtoException& e) {
+        return IAMError(e);
+    }
+}
+
+std::pair<IAMError, std::unique_ptr<Settings> > get_settings(std::shared_ptr<nabto::client::Connection> connection)
+{
+    auto coap = connection->createCoap("GET", "/iam/settings");
+    try {
+        coap->execute()->waitForResult();
+        int statusCode = coap->getResponseStatusCode();
+        int contentFormat = coap->getResponseContentFormat();
+        if (statusCode == 205 &&
+            contentFormat == CONTENT_FORMAT_APPLICATION_CBOR) {
+            std::vector<uint8_t> payload = coap->getResponsePayload();
+            nlohmann::json root = nlohmann::json::from_cbor(payload);
+            return std::make_pair(IAMError(), std::make_unique<Settings>(root.get<Settings>()));
+        }
+
+        return std::make_pair(IAMError(coap), nullptr);
+    } catch (nabto::client::NabtoException& e) {
+        return std::make_pair(IAMError(e), nullptr);
+    } catch (nlohmann::json::exception& e) {
+        return std::make_pair(IAMError(e), nullptr);
     }
 }
 
