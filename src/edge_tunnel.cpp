@@ -149,7 +149,7 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
     }
 
     connection->setServerKey(Config->getServerKey());
-    connection->setServerConnectToken(device.getServerConnectToken());
+    connection->setServerConnectToken(device.getSct());
 
     try {
         connection->connect()->waitForResult();

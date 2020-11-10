@@ -43,7 +43,7 @@ void to_json(json& j, const DeviceInfo& d)
             {"DeviceFingerprint", d.deviceFingerprint_},
             {"DeviceId", d.deviceId_},
             {"ProductId", d.productId_},
-            {"ServerConnectToken", d.serverConnectToken_}
+            {"Sct", d.sct_}
         });
     if (!d.directCandidate_.empty()) {
         j["DirectCandidate"] = d.directCandidate_;
@@ -55,7 +55,7 @@ void from_json(const json& j, DeviceInfo& d)
     j.at("DeviceFingerprint").get_to(d.deviceFingerprint_);
     j.at("DeviceId").get_to(d.deviceId_);
     j.at("ProductId").get_to(d.productId_);
-    j.at("ServerConnectToken").get_to(d.serverConnectToken_);
+    j.at("Sct").get_to(d.sct_);
     try {
         j.at("DirectCandidate").get_to(d.directCandidate_);
     } catch (const std::exception& e) {

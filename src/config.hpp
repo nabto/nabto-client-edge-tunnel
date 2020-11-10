@@ -44,7 +44,7 @@ class DeviceInfo
     std::string getDeviceId() { return deviceId_; }
     std::string getProductId() { return productId_; }
     std::string getDeviceFingerprint() { return deviceFingerprint_; }
-    std::string getServerConnectToken() { return serverConnectToken_; }
+    std::string getSct() { return sct_; }
     std::string getDirectCandidate() { return directCandidate_; }
     int getIndex() { return index_; }
 
@@ -52,7 +52,7 @@ class DeviceInfo
     std::string deviceId_;
     std::string productId_;
     std::string deviceFingerprint_;
-    std::string serverConnectToken_;
+    std::string sct_;
     std::string directCandidate_;
 };
 

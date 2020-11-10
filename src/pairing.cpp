@@ -324,13 +324,13 @@ bool string_pair(std::shared_ptr<nabto::client::Context> ctx, const std::string&
     std::string productId = args["p"];
     std::string deviceId = args["d"];
     std::string pairingPassword = args["pwd"];
-    std::string serverConnectToken = args["sct"];
+    std::string sct = args["sct"];
     std::string usernameInvite = args["u"];
     
-    return param_pair(ctx, productId, deviceId, usernameInvite, pairingPassword, serverConnectToken);
+    return param_pair(ctx, productId, deviceId, usernameInvite, pairingPassword, sct);
 }
 
-bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const std::string& productId, const std::string& deviceId, const std::string& usernameInvite, const std::string& pairingPassword, const std::string& serverConnectToken)
+bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const std::string& productId, const std::string& deviceId, const std::string& usernameInvite, const std::string& pairingPassword, const std::string& sct)
 {
     auto Config = Configuration::GetConfigInfo();
     if (!Config) {
@@ -355,7 +355,7 @@ bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const std::string& 
         // TODO(as): No server url found.
     }
     connection->setServerKey(Config->getServerKey());
-    connection->setServerConnectToken(serverConnectToken);
+    connection->setServerConnectToken(sct);
     json options;
 
     try {
@@ -446,7 +446,7 @@ bool write_config(std::shared_ptr<nabto::client::Connection> connection, const s
         ec.printError();
         return false;
     }
-    device.serverConnectToken_ = user->getServerConnectToken();
+    device.sct_ = user->getSct();
     return write_config(device);
 }
 

@@ -90,7 +90,7 @@ void from_json(const json &j, User &user) {
         j.at("Fingerprint").get_to(user.fingerprint_);
     } catch (const std::exception& e) { }
     try {
-        j.at("ServerConnectToken").get_to(user.serverConnectToken_);
+        j.at("Sct").get_to(user.sct_);
     } catch (const std::exception& e) { }
     try {
         j.at("Role").get_to(user.role_);
@@ -299,7 +299,7 @@ void from_json(const json& j, Settings& s)
     } catch (std::exception& e) {}
 
     try {
-        j.at("PasswordOpenServerConnectToken").get_to(s.passwordOpenServerConnectToken_);
+        j.at("PasswordOpenSct").get_to(s.passwordOpenSct_);
     } catch (std::exception& e) {}
 
      try {
@@ -347,7 +347,7 @@ std::string pairingModeAsString(PairingMode mode)
 
 IAMError set_settings_password_open_pairing(std::shared_ptr<nabto::client::Connection> connection, bool enabled)
 {
-    auto coap = connection->createCoap("PUT", "/iam/settings/PasswordOpenPairing");
+    auto coap = connection->createCoap("PUT", "/iam/settings/password-open-pairing");
     try {
         nlohmann::json root;
         root = enabled;
@@ -366,7 +366,7 @@ IAMError set_settings_password_open_pairing(std::shared_ptr<nabto::client::Conne
 
 IAMError set_settings_local_open_pairing(std::shared_ptr<nabto::client::Connection> connection, bool enabled)
 {
-    auto coap = connection->createCoap("PUT", "/iam/settings/LocalOpenPairing");
+    auto coap = connection->createCoap("PUT", "/iam/settings/local-open-pairing");
     try {
         nlohmann::json root;
         root = enabled;

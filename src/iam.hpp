@@ -34,15 +34,15 @@ class User {
     static std::unique_ptr<User> create(const nlohmann::json& in);
     std::string getUsername() { return username_; }
     std::string getRole() { return role_; }
-    std::string getServerConnectToken() { return serverConnectToken_; }
+    std::string getSct() { return sct_; }
     std::string getFingerprint() { return fingerprint_; }
     void print() {
-        std::cout << "Username: " << username_ << ", Role: " << role_ << ", SCT: " << serverConnectToken_ << ", Fingerprint " << fingerprint_ << std::endl;
+        std::cout << "Username: " << username_ << ", Role: " << role_ << ", SCT: " << sct_ << ", Fingerprint " << fingerprint_ << std::endl;
     }
  public:
     std::string username_;
     std::string role_;
-    std::string serverConnectToken_;
+    std::string sct_;
     std::string fingerprint_;
 };
 
@@ -78,12 +78,12 @@ class Settings {
  public:
     bool getLocalOpenPairing() { return localOpenPairing_; }
     bool getPasswordOpenPairing() { return passwordOpenPairing_; }
-    std::string getPasswordOpenServerConnectToken() { return passwordOpenServerConnectToken_; }
+    std::string getPasswordOpenSct() { return passwordOpenSct_; }
     std::string getPasswordOpenPassword() { return passwordOpenPassword_; }
 
     bool localOpenPairing_;
     bool passwordOpenPairing_;
-    std::string passwordOpenServerConnectToken_;
+    std::string passwordOpenSct_;
     std::string passwordOpenPassword_;
 };
 
