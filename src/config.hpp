@@ -26,7 +26,7 @@ const std::string nabtoFolder = ".nabto";
 #endif
 
 const std::string ClientFileName = "config/tcp_tunnel_client_config.json";
-const std::string StateFileName = "config/tcp_tunnel_client_state.json";
+const std::string StateFileName = "state/tcp_tunnel_client_state.json";
 const std::string KeyFileName = "keys/client.key";
 
 
