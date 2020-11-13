@@ -37,7 +37,7 @@ class User {
     std::string getSct() { return sct_; }
     std::string getFingerprint() { return fingerprint_; }
     void print() {
-        std::cout << "Username: " << username_ << ", Role: " << role_ << ", SCT: " << sct_ << ", Fingerprint " << fingerprint_ << std::endl;
+        std::cout << "Username: " << username_ << ", Role: " << role_ << ", SCT: " << sct_ << ", Fingerprint: " << fingerprint_ << std::endl;
     }
  public:
     std::string username_;

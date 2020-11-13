@@ -319,7 +319,7 @@ int main(int argc, char** argv)
         ;
 
     options.add_options("Pairing")
-        ("pair", "Pair the client with a tcp tunnel device running on the local network interactively")
+        ("pair-local", "Pair the client with a tcp tunnel device running on the local network interactively")
         ("pair-string", "Pair with a tcp tunnel device using a pairing string", cxxopts::value<std::string>())
         ("pair-direct", "Pair with a tcp tunnel device directly using its ip or hostname", cxxopts::value<std::string>())
         ;
@@ -390,7 +390,7 @@ int main(int argc, char** argv)
         context->setLogger(std::make_shared<MyLogger>());
         context->setLogLevel(result["log-level"].as<std::string>());
 
-        if (result.count("pair")) {
+        if (result.count("pair-local")) {
             if (!interactive_pair(context)) {
                 return 1;
             }

@@ -175,7 +175,7 @@ bool interactive_pair(std::shared_ptr<nabto::client::Context> Context)
         std::string ProductID;
         std::string DeviceID;
         std::tie(ProductID, DeviceID) = devices[i];
-        std::cout << "[" << i << "] ProductId: " << ProductID << " DeviceId: " << DeviceID << std::endl;
+        std::cout << "[" << i << "]: ProductId: " << ProductID << " DeviceId: " << DeviceID << std::endl;
     }
 
     int deviceChoice = IAM::interactive_choice("Choose a device: ", 0, devices.size());
@@ -326,7 +326,7 @@ bool string_pair(std::shared_ptr<nabto::client::Context> ctx, const std::string&
     std::string pairingPassword = args["pwd"];
     std::string sct = args["sct"];
     std::string usernameInvite = args["u"];
-    
+
     return param_pair(ctx, productId, deviceId, usernameInvite, pairingPassword, sct);
 }
 
@@ -464,4 +464,3 @@ bool write_config(Configuration::DeviceInfo& device)
     }
     return true;
 }
-
