@@ -206,7 +206,7 @@ std::unique_ptr<ClientConfiguration> GetConfigInfo()
 {
     if (!FileExists(Configuration.ConfigFilePath)) {
         if (!CreateClientConfigurationFile()) {
-            std::cerr << "The client configuration file " << Configuration.ConfigFilePath << " does not exists and could not be generated. " << std::endl;
+            std::cerr << "The client configuration file " << Configuration.ConfigFilePath << " does not exist and could not be generated. " << std::endl;
             return nullptr;
         }
     }
@@ -316,7 +316,7 @@ bool GetPrivateKey(std::shared_ptr<nabto::client::Context> Context, string& Out)
 {
     if (!FileExists(Configuration.KeyFilePath)) {
         if (!CreatePrivateKeyFile(Context)) {
-            std::cerr << "The private key file " << Configuration.KeyFilePath << " does not exists and could not be generated. " << std::endl;
+            std::cerr << "The private key file " << Configuration.KeyFilePath << " does not exist and could not be generated. " << std::endl;
             return false;
         }
     }
@@ -344,7 +344,7 @@ void PrintBookmarks()
 bool DeleteBookmark(const uint32_t& bookmark)
 {
     if (Configuration.Bookmarks.find(bookmark) == Configuration.Bookmarks.end()) {
-        std::cerr << "The bookmark " << bookmark << " does not exists" << std::endl;
+        std::cerr << "The bookmark " << bookmark << " does not exist" << std::endl;
         return false;
     }
     Configuration.Bookmarks.erase(bookmark);

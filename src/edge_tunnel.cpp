@@ -432,7 +432,7 @@ int main(int argc, char** argv)
             auto Device = Configuration::GetPairedDevice(SelectedBookmark);
             if (!Device)
             {
-                std::cerr << "The bookmark " << SelectedBookmark << " does not exists" << std::endl;
+                std::cerr << "The bookmark " << SelectedBookmark << " does not exist" << std::endl;
                 return 1;
             }
 
