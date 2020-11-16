@@ -425,7 +425,7 @@ int main(int argc, char** argv)
             uint32_t SelectedBookmark = result["bookmark"].as<uint32_t>();
 
             if (Configuration::HasNoBookmarks()) {
-                std::cerr << "No devices has been paired, start by pairing the client with a device." << std::endl;
+                std::cerr << "No devices have been paired, start by pairing the client with a device." << std::endl;
                 return 1;
             }
 
