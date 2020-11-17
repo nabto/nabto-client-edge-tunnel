@@ -167,7 +167,7 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
     }
 
     try {
-        if (connection->getDeviceFingerprintFullHex() != device.getDeviceFingerprint()) {
+        if (connection->getDeviceFingerprint() != device.getDeviceFingerprint()) {
             handleFingerprintMismatch(connection, device);
             return nullptr;
         }
@@ -296,6 +296,7 @@ bool tcptunnel(std::shared_ptr<nabto::client::Connection> connection, std::vecto
     connection_ = connection;
 
     closeListener->waitForClose();
+    connection->removeEventsListener(closeListener);
     connection_.reset();
     return true;
 }

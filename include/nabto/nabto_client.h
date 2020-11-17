@@ -130,6 +130,8 @@ NABTO_CLIENT_DECL_PREFIX extern const NabtoClientError NABTO_CLIENT_EC_UNKNOWN_P
 NABTO_CLIENT_DECL_PREFIX extern const NabtoClientError NABTO_CLIENT_EC_UNKNOWN_DEVICE_ID;
 NABTO_CLIENT_DECL_PREFIX extern const NabtoClientError NABTO_CLIENT_EC_UNKNOWN_SERVER_KEY;
 NABTO_CLIENT_DECL_PREFIX extern const NabtoClientError NABTO_CLIENT_EC_CONNECTION_REFUSED;
+NABTO_CLIENT_DECL_PREFIX extern const NabtoClientError NABTO_CLIENT_EC_INTERNAL_ERROR;
+
 
 
 
@@ -186,6 +188,9 @@ typedef struct NabtoClientListener_ NabtoClientListener;
  */
 typedef void (*NabtoClientFutureCallback)(NabtoClientFuture* future, NabtoClientError error, void* data);
 
+/**
+ * This struct contains the data to be logged.
+ */
 typedef struct NabtoClientLogMessage_ {
     NabtoClientLogSeverity severity;
     const char* severityString;
@@ -195,6 +200,9 @@ typedef struct NabtoClientLogMessage_ {
     const char* message; /* the message null terminated utf-8 */
 } NabtoClientLogMessage;
 
+/**
+ * Callback from the NabtoClient when a new log message is available.
+ */
 typedef void (*NabtoClientLogCallback)(const NabtoClientLogMessage* message, void* data);
 
 /**********************
@@ -204,7 +212,7 @@ typedef void (*NabtoClientLogCallback)(const NabtoClientLogMessage* message, voi
 /**
  * @intro Client Context
  *
- * The Context API manages the context where all connections llive.
+ * The Context API manages the context where all connections live.
  */
 
 /**
@@ -218,6 +226,8 @@ nabto_client_new();
  *
  * If stop has not been called prior to this function, free can block
  * until all io operations has finished.
+ * 
+ * @param context [in]  The context
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_free(NabtoClient* context);
@@ -226,6 +236,7 @@ nabto_client_free(NabtoClient* context);
 /**
  * Stop a client context, this function is blocking until no more callbacks
  * is in progress or on the event or callback queues.
+ * @param context [in]  The NabtoClient to stop
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_stop(NabtoClient* context);
@@ -249,11 +260,11 @@ nabto_client_create_private_key(NabtoClient* context, char** privateKey);
 /**
  * @intro Connection
  *
- * The connection API is used to establish a connection to a specific device. A connection object is
- * first created with `nabto_client_connection_new` and configured with the various
- * `nabto_client_connection_set_` functions, specifying how the connection should be
- * established. Once configured, the connection can be established with
- * `nabto_client_connection_connect`.
+ * The connection API is used to establish a connection to a specific device. A
+ * connection object is first created with `nabto_client_connection_new` and
+ * configured with the various `nabto_client_connection_set_` functions,
+ * specifying how the connection should be established. Once configured, the
+ * connection can be established with `nabto_client_connection_connect`.
  */
 
 /**
@@ -280,6 +291,8 @@ nabto_client_connection_free(NabtoClientConnection* connection);
  * any more.
  *
  * Stop can be used if the user cancels a connect/close request.
+ * 
+ * @param connection [in]  The connection.
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_connection_stop(NabtoClientConnection* connection);
@@ -295,6 +308,7 @@ nabto_client_connection_stop(NabtoClientConnection* connection);
  * This functions can be used to set connection parameters in
  * bulk or as indidual parameters.
  *
+ * ```
  * Connection options.
  * - PrivateKey: string pem encoded EC private key
  * - ProductId: string
@@ -305,32 +319,44 @@ nabto_client_connection_stop(NabtoClientConnection* connection);
  * - ServerConnectToken: string
  * - AppName: string
  * - AppVersion: string
+ * ```
  *
  * Control the keep alive settings for the connection between
  * the client and the device.
+ * ```
  * - KeepAliveInterval: unsigned integer in milliseconds, default 30000
  * - KeepAliveRetryInterval: unsigned integer in milliseconds, default 2000
  * - KeepAliveMaxRetries: unsigned integer default 15
+ * ```
  *
  * Control which connections features to use.
  *
  * Set local to enable/disable local connections
+ * ```
  * - Local: (true|false)
+ * ```
  *
  * Enable/disable connections mediated through a cloud server.
+ * ```
  * - Remote: (true|false)
+ * ```
  *
  * Enable/disable udp holepunching on remote connections.
+ * ```
  * - Rendezvous: (true|false)
+ * ```
  *
  * Use pre 5.2 local discovery.  Before 5.2 devices is located by
  * doing a mDNS scan for all the devices. After 5.2 including 5.2,
  * devices are located by a device specific mDNS subtype. Set this
  * option to true to use the pre 5.2 way of locating devices.
+ * ```
  * - ScanLocalConnect: (true|false)
+ * ```
  *
  * Example force local connections:
- *
+ * 
+ * ```
  * std::string options = R"(
  * {
  *   "Remote": false
@@ -349,10 +375,13 @@ nabto_client_connection_stop(NabtoClientConnection* connection);
  * }
  * )";
  * nabto_client_connection_set_options(connection, options.c_str());
+ * ```
  *
  * This function can only be invoked before the connection
  * establishment is started.
  *
+ * @param connection [in] The connection
+ * @param json [in]  Options formatted as json
  * @return NABTO_CLIENT_EC_OK  iff the json document is parsed and understood.
  *         NABTO_CLIENT_EC_INVALID_ARGUMENT if the json is not understood. See error log for more details.
  */
@@ -373,25 +402,35 @@ NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_connection_get_options(NabtoClientConnection* connection, char** json);
 
 /**
- * Set the product id and device id for the remote device.
+ * Set the product id for the remote device.
  *
  * This function is required to be called before connecting to a
  * device. It cannot be changed after a connection is made.
  *
- * @param connection  the connection.
- * @param productId the product id aka the id for the specific group of devices.
- * @param deviceId the unique id for the device.
+ * @param connection  The connection.
+ * @param productId  The product id aka the id for the specific group of devices.
  * @return NABTO_CLIENT_EC_OK if the id was set.
  *         NABTO_CLIENT_EC_INVALID_STATE if the connection is not in the setup phase
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_connection_set_product_id(NabtoClientConnection* connection, const char* productId);
 
+/**
+ * Set the device id for the remote device.
+ *
+ * This function is required to be called before connecting to a
+ * device. It cannot be changed after a connection is made.
+ *
+ * @param connection  The connection.
+ * @param deviceId  The unique id for the device.
+ * @return NABTO_CLIENT_EC_OK if the id was set.
+ *         NABTO_CLIENT_EC_INVALID_STATE if the connection is not in the setup phase
+ */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_connection_set_device_id(NabtoClientConnection* connection, const char* deviceId);
 
 
-/**
+/*
  * @Deprecated use nabto_client_connection_set_server_key
  * Set the server api key, which is provided by nabto. Each APP needs
  * its own server api key to be able to connect to the nabto api. The
@@ -414,8 +453,8 @@ nabto_client_connection_set_server_api_key(NabtoClientConnection* connection,
  * server key will be put into the final applications it's not
  * secret.
  *
- * @param connection the connection
- * @param serverKey the server key
+ * @param connection  The connection
+ * @param serverKey  The server key
  * @return NABTO_CLIENT_EC_OK on success
  *         NABTO_CLIENT_EC_INVALID_STATE if the connection is not in the setup phase
  */
@@ -426,20 +465,18 @@ nabto_client_connection_set_server_key(NabtoClientConnection* connection,
 /**
  * Set a JWT token to use when connecting to the server.
  *
- * If the authentication method for the server_key is set to JWT this
- * option is required.  If the user is authenticated and can get a JWT
- * this JWT can be given to the connect such that the relay server can
- * validate that the given user has access to connect to the specific
- * device.
+ * If the authentication method for the server_key is set to JWT in the solution
+ * configuration set in the Nabto Cloud Console, this option is required.  If
+ * the user is authenticated and can get a JWT this JWT can be given to the
+ * connect such that the relay server can validate that the given user has
+ * access to connect to the specific device.
  *
- * The server will look for a claim with a list of ids granted access
- *   to based on the token.
- *   `product_id`.`device_id`
+ * The server will look for a claim with a list of ids granted access to based
+ *   on the token. `product_id`.`device_id`
  *
- * The server is configured with an audience, issuer, nabto_ids_claim
- * and a jwks_uri. The server validates the client requests against
- * these parameters. These parameters is customizable for each
- * server_key.
+ * The server is configured with an audience, issuer, nabto_ids_claim and a
+ * jwks_uri. The server validates the client requests against these parameters.
+ * These parameters is customizable for each server_key.
  *
  * example token payload content:
  *
@@ -450,10 +487,11 @@ nabto_client_connection_set_server_key(NabtoClientConnection* connection,
  *   "nabto_ids": "pr-12345678.de-12345678 pr-87654321.de-87654321"
  * }```
  *
- * @param connection [in] the connection
- * @param jwt [in] the base64 JWT string, the string is copied into the connection.
- * @return NABTO_CLIENT_EC_OK on success
- *         NABTO_CLIENT_EC_INVALID_STATE if the connection is not in the setup phase
+ * @param connection [in]  The connection
+ * @param jwt [in]  The base64 JWT string, the string is copied into the
+ * connection.
+ * @return NABTO_CLIENT_EC_OK on success NABTO_CLIENT_EC_INVALID_STATE if the
+ *         connection is not in the setup phase
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_connection_set_server_jwt_token(NabtoClientConnection* connection,
@@ -462,11 +500,16 @@ nabto_client_connection_set_server_jwt_token(NabtoClientConnection* connection,
 /**
  * Set a SCT (Server Connect Token) token to use when connecting the the server.
  *
- * If the authentication methid for the given server_key is set to
- * SCT, the server requires a valid SCT token before it allows the
- * connect.
+ * If the authentication method for the given server_key is set to SCT, the
+ * server requires a valid Server Connect Token before it allows the connect.
  *
  * This authorization method is distinct from the JWT token concept.
+ * 
+ * This needs to be set before nabto_client_connect is called.
+ * 
+ * @param connection [in]  The connection.
+ * @param sct [in]  The Server Connect Token. 
+ * @return NABTO_CLIENT_EC_OK  if the token is set.
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_connection_set_server_connect_token(NabtoClientConnection* connection,
@@ -534,29 +577,51 @@ NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_connection_set_private_key(NabtoClientConnection* connection, const char* privateKey);
 
 /**
- * Get the truncated/full fingerprint of the remote device public key. The
+ * Get the full fingerprint of the remote device public key. The
  * fingerprint is used to validate the identity of the remote device.
  *
  * @param connection [in]  The connection.
- * @param fingerprint [out]  The fingerprint, the fingerprint has to be freed using nabto_client_string_free.
+ * @param fingerprint [out]  The fingerprint encoded as hex, the fingerprint has to be freed using nabto_client_string_free.
  * @return NABTO_CLIENT_EC_OK if the fingerprint was copied to the fingerprint parameter.
  *         NABTO_CLIENT_EC_INVALID_STATE if the connection is not connected
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
+nabto_client_connection_get_device_fingerprint(NabtoClientConnection* connection, char** fingerprintHex);
+
+/*
+ * Return a truncated fingerprint a truncated version of nabto_client_connection_get_device_fingerprint
+ * @deprecated use nabto_client_connection_get_device_fingerprint
+ */
+NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_connection_get_device_fingerprint_hex(NabtoClientConnection* connection, char** fingerprintHex);
 
+/*
+ * Return a fingerprint of the device public key of the current device.
+ * @deprecated use nabto_client_connection_get_device_fingerprint
+ */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_connection_get_device_fingerprint_full_hex(NabtoClientConnection* connection, char** fingerprintHex);
 
 /**
- * Get the truncated/full fingerprint of the client certificate used for this connection
+ * Get the fingerprint of the client public key used for this connection.
  * @param connection [in]  The connection.
  * @param fingerprint [out]  The fingerprint, the fingerprint has to be freed using nabto_client_string_free after use.
  * @return NABTO_CLIENT_EC_OK if the fingerprint was copied to the fingerprint parameter.
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
+nabto_client_connection_get_client_fingerprint(NabtoClientConnection* connection, char** fingerprintHex);
+
+/*
+ * Get the truncated fingerprint of the clients public key.
+ * @deprecated use nabto_client_connection_get_client_fingerprint
+ */
+NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_connection_get_client_fingerprint_hex(NabtoClientConnection* connection, char** fingerprintHex);
 
+/*
+ * Get the fingerprint of the clients public key, same as nabto_client_connection_get_client_fingerprint
+ * @deprecated use nabto_client_connection_get_client_fingerprint
+ */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_connection_get_client_fingerprint_full_hex(NabtoClientConnection* connection, char** fingerprintHex);
 
@@ -564,8 +629,8 @@ nabto_client_connection_get_client_fingerprint_full_hex(NabtoClientConnection* c
  * Get the connection type. Use this function to limit the amount of
  * traffic sent over relay connections.
  *
- * @param connection The connection.
- * @param type the connection type.
+ * @param connection [in]  The connection.
+ * @param type [out]  The connection type.
  * @return NABTO_CLIENT_EC_OK if the connection is connected.
  *         NABTO_CLIENT_EC_INVALID_STATE if the connection is closed or not opened yet.
  */
@@ -573,27 +638,29 @@ NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_connection_get_type(NabtoClientConnection* connection, NabtoClientConnectionType* type);
 
 
-/*
- * Direct connections is a way to make the client create a connection
- * to a device which can be reached directly with ip communication.
- *
- * Usage:
- * 1. call nabto_client_connection_enable_direct_candidates();
- * 2. call nabto_client_connection_connect();
- * 3. call nabto_client_connection_add_direct_candidate();
- * 4. call nabto_client_connection_end_of_direct_candidates();
- */
-
 /**
  * Enable direct communication for a connection, using candidates
  * provided by the nabto_client_connection_add_direct_candidate
  * function.
+ * 
+ * Direct connections is a way to make the client create a connection
+ * to a device which can be reached directly with ip communication.
+ *
+ * Usage:
+ * ```
+ * 1. call nabto_client_connection_enable_direct_candidates();
+ * 2. call nabto_client_connection_connect();
+ * 3. call nabto_client_connection_add_direct_candidate();
+ * 4. call nabto_client_connection_end_of_direct_candidates();
+ * ```
+ * @param connection [in]  The connection,
+ * @return NABTO_CLIENT_EC_OK  if direct candidates was enabled.
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_connection_enable_direct_candidates(NabtoClientConnection* connection);
 
 /**
- *  Add a direct endpoint candidate.
+ * Add a direct candidate.
  *
  * This function can be used to manually add direct device
  * hostnames/ips where the client can make a direct connection to a
@@ -611,11 +678,11 @@ nabto_client_connection_add_direct_candidate(NabtoClientConnection* connection, 
 
 /**
  * Inform the connection that no more direct endpoints will be added to the connection.
+ * @param connection [in]  The connection.
+ * @return NABTO_CLIENT_EC_OK if success.
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_connection_end_of_direct_candidates(NabtoClientConnection* connection);
-
-
 
 /**
  * Connect to a device.
@@ -638,7 +705,8 @@ nabto_client_connection_end_of_direct_candidates(NabtoClientConnection* connecti
  * the server, it is not logged as an error. If the server_key
  * specified is invalid, then it's logged as an error.
  *
- *
+ * @param connection [in]  The connection.
+ * @param future [in]  The future.
  * @return NABTO_CLIENT_EC_OK iff connection is ok and connected to
  *         the device.
  *         NABTO_CLIENT_EC_INVALID_STATE if the connection is
@@ -649,6 +717,9 @@ nabto_client_connection_end_of_direct_candidates(NabtoClientConnection* connecti
  *         nabto_client_connection_get_info for what went wrong.
  *         NABTO_CLIENT_EC_NOT_CONNECTED if the the connection failed for some
  *         unspecified reason.
+ *         NABTO_CLIENT_EC_INTERNAL_ERROR if the device encountered an internal 
+ *         error during the connect attempt. This is most likely due to no more
+ *         connection resources available in the device.
  *
  *
  */
@@ -656,11 +727,14 @@ NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_connection_connect(NabtoClientConnection* connection, NabtoClientFuture* future);
 
 /**
- * Graceful close a connection, and the connection.  non graceful
+ * Gracefully close a connection, and the connection. Non-graceful
  * closedown can be made using the free function.
  *
  * When the future returns with NABTO_CLIENT_EC_OK, the connection is
  * closed.
+ *
+ * @param connection [in] the connection to close.
+ * @param future [in] the future resolves when the connection is closed.
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_connection_close(NabtoClientConnection* connection, NabtoClientFuture* future);
@@ -668,6 +742,7 @@ nabto_client_connection_close(NabtoClientConnection* connection, NabtoClientFutu
 /**
  * Get error code for the local channel
  *
+ * @param connection [in]  The connection on which the local channel is opened for which the error should be retrieved.
  * @return NABTO_CLIENT_EC_OK if the device was found using mdns.
  *         NABTO_CLIENT_EC_NONE if mdns discovery was not enabled for the connection.
  *         NABTO_CLIENT_EC_NOT_FOUND if mdns was enabled but the device was not found.
@@ -678,7 +753,8 @@ nabto_client_connection_get_local_channel_error_code(NabtoClientConnection* conn
 
 /**
  * Get error code for the remote channel
- *
+ * 
+ * @param connection [in]  The connection on which the remote channel is opened for which the error should be retrieved.
  * @return NABTO_CLIENT_EC_OK  if a remote relay channel was made.
  *         NABTO_CLIENT_EC_NONE  if remote relay was not enabled.
  *         NABTO_CLIENT_EC_NOT_ATTACHED  if the device is not attached to the basestation
@@ -699,6 +775,7 @@ nabto_client_connection_get_remote_channel_error_code(NabtoClientConnection* con
 /**
  * Get error code for the direct chandidates channels
  *
+ * @param connection [in]  The connection on which the direct channel is opened for which the error should be retrieved.
  * @return NABTO_CLIENT_EC_OK  if a direct candidate was found.
  *         NABTO_CLIENT_EC_NONE  direct candidates was not enabled.
  *         NABTO_CLIENT_EC_NOT_FOUND  If no direct candidates resulted in UDP ping responses.
@@ -723,9 +800,42 @@ nabto_client_connection_get_direct_candidates_channel_error_code(NabtoClientConn
  * relay was created.
  *
  * The returned json needs to be freed with nabto_client_string_free
+ * 
+ * @deprecated
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_connection_get_info(NabtoClientConnection* connection, char** json);
+
+/**
+ * Password authenticate, do a password authentication exchange with a
+ * device.
+ *
+ * Password authenticate the client and the device. The password
+ * authentication is bidirectional and based on PAKE, such that both
+ * the client and the device learns that the other end knows the
+ * password, without revealing the password to the other end.
+ *
+ * A specific use case for the password authentication is to prove the
+ * identity of a device which identity is not already known, e.g. in a
+ * pairing scenario.
+ *
+ * @param connection  The connection
+ * @param username    The username
+ * @param password    The password
+ * @param future      The future with the result
+ *
+ * The future resolves with the status of the authentication.
+ *
+ * NABTO_CLIENT_EC_OK iff the authentication went well.
+ * NABTO_CLIENT_EC_UNAUTHORIZED iff the username or password is invalid
+ * NABTO_CLIENT_EC_NOT_FOUND if the password authentication feature is not available on the device.
+ * NABTO_CLIENT_EC_NOT_CONNECTED if the connectio is not connected.
+ * NABTO_CLIENT_EC_OPERATION_IN_PROGRESS if a password authentication request is already in progress on the connection.
+ * NABTO_CLIENT_EC_TOO_MANY_REQUESTS if too many password attempts has been made.
+ */
+NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
+nabto_client_connection_password_authenticate(NabtoClientConnection* connection, const char* username, const char* password, NabtoClientFuture* future);
+
 
 /*********************
  * Connection Events *
@@ -784,7 +894,7 @@ nabto_client_connection_events_init_listener(NabtoClientConnection* connection, 
  */
 
 /**
- * Create a stream
+ * Create a stream.
  *
  * @param connection  The connection to make the stream on, the connection needs
  * to be kept alive until the stream has been freed.
@@ -794,25 +904,41 @@ NABTO_CLIENT_DECL_PREFIX NabtoClientStream* NABTO_CLIENT_API
 nabto_client_stream_new(NabtoClientConnection* connection);
 
 /**
- * Free a stream
+ * Free a stream.
  *
  * @param stream, the stream to free
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_stream_free(NabtoClientStream* stream);
 
+
+/**
+ * Abort / stop a stream.
+ *
+ * Aborting of a stream does not care about whether there's unacknowledged data,
+ * it forces the stream to stop. Outstanding read/write/close callbacks will be
+ * resolved as the stream is forcefully stopped. The function is not blocking so
+ * the actual callbacks may not be resolved until this function returns.
+ * 
+ * @param stream [in]  The stream.
+ */
+NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
+nabto_client_stream_abort(NabtoClientStream* stream);
+
+
+
 /**
  * Handshake a stream. This function initializes and does a three way
  * handshake on a stream.
  *
- * @param stream  The stream to connect.
- * @param port    The listening id/port to use for the stream. This is used to distinguish
-                  streams in the other end, like a port number.
+ * @param stream [in]  The stream to connect.
+ * @param future [in]  The future.
+ * @param port [in]    The listening id/port to use for the stream. This is used to distinguish
+                       streams in the other end, like a port number.
  * @return A future when resolved the stream is either established or failed.
  * Future status:
  *   NABTO_CLIENT_EC_OK if opening went ok.
  *   NABTO_CLIENT_EC_ABORTED if the stream could not be created, e.g. the handshake is aborted.
- *
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_stream_open(NabtoClientStream* stream, NabtoClientFuture* future, uint32_t port);
@@ -826,6 +952,7 @@ nabto_client_stream_open(NabtoClientStream* stream, NabtoClientFuture* future, u
  * NABTO_CLIENT_EC_EOF will be returned.
  *
  * @param stream [in]       The stream to read bytes from.
+ * @param future [in]       The future that resolves when the read completes or fails.
  * @param buffer [out]      The buffer to put data into. It needs to be kept available until the future resolves.
  * @param bufferLength [in] The length of the output buffer.
  * @param readLength [out]  The actual number of bytes read. It needs to be kept available until the future resolves.
@@ -845,6 +972,7 @@ nabto_client_stream_read_all(NabtoClientStream* stream, NabtoClientFuture* futur
  * stream is eof.
  *
  * @param stream [in]        The stream to read bytes from
+ * @param future [in]        The future that resolves when the read completes or fails.
  * @param buffer [out]       The buffer where bytes is copied to. It needs to be kept available until the future resolves.
  * @param bufferLength [in]  The length of the output buffer.
  * @param readLength [out]   The actual number of read bytes. It needs to be kept available until the future resolves.
@@ -870,11 +998,11 @@ nabto_client_stream_read_some(NabtoClientStream* stream, NabtoClientFuture* futu
  * nabto_client_stream_write.
  *
  * @param stream [in] The stream to write data to.
+ * @param future [in] The future that resolves when the write completes or fails.
  * @param buffer [in] The input buffer with data to write to the stream, the buffer needs to be kept alive until the future returns.
  * @param bufferLenth [in], length of the input data.
  *
- * Future return error codes.
- *
+ * Future status:
  * NABTO_CLIENT_EC_OK if write was ok, the buffer is fully copied
  *   into the streaming buffers, but not neccessarily sent or acknowledgeg by the other end yet.
  * NABTO_CLIENT_STREAM_CLOSED if the stream is closed for writing.
@@ -904,14 +1032,6 @@ nabto_client_stream_write(NabtoClientStream* stream, NabtoClientFuture* future, 
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_stream_close(NabtoClientStream* stream, NabtoClientFuture* future);
 
-/**
- * Abort a stream, do not care about whether there's unacknowledged
- * data, just make the stream close and get all outstanding callbacks
- * resolved. The function is not blocking so the actual callbacks is
- * maybe first resolved when this function returns.
- */
-NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
-nabto_client_stream_abort(NabtoClientStream* stream);
 
 /*****************
  * CoAP API
@@ -966,6 +1086,8 @@ nabto_client_coap_free(NabtoClientCoap* coap);
  * Stop a coap request. This stops outstanding
  * nabto_client_coap_execute calls. The request should not be used
  * after it has been stopped.
+ * 
+ * @param coap [in]  The CoAP request.
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_coap_stop(NabtoClientCoap* coap);
@@ -992,6 +1114,9 @@ nabto_client_coap_set_request_payload(NabtoClientCoap* coap, uint16_t contentFor
  * response, the future will not return NABTO_CLIENT_EC_OK, but an
  * apporpriate error code. If a response is not received within 2 min,
  * the future will return NABTO_CLIENT_EC_TIMEOUT.
+ * 
+ * @param request [in] The CoAP request to execute.
+ * @param future [in] The future completes when the CoAP request completes or fails.
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_coap_execute(NabtoClientCoap* request, NabtoClientFuture* future);
@@ -1074,27 +1199,40 @@ nabto_client_tcp_tunnel_new(NabtoClientConnection* connection);
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_tcp_tunnel_free(NabtoClientTcpTunnel* tunnel);
 
+
+/**
+ * Stop a tcp tunnel. Stop can be used to cancel async functions like
+ * open and close. But the tcp tunnel cannot be used after it has been
+ * stopped. So you cannot call open, then stop and then resume the
+ * open again.
+ * 
+ * @param tunnel [in]  The tunnel.
+ */
+NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
+nabto_client_tcp_tunnel_stop(NabtoClientTcpTunnel* tunnel);
+
 /**
  * Opens a TCP tunnel to a TCP server through a Nabto enabled device
  * connected to earlier. The ip address of the server is configured in
  * the device. Often it is configured to localhost.
- *
- * @param tunnel      Tunnel handle crated with nabto_client_tcp_tunnel_new
- * @param service     The service on the remote host to connect to.
- * @param localPort   The local TCP port to listen on. If the localPort
- *                    number is 0 the api will choose the port number.
- * @return a future, when resolved the tunnel is either established or failed. If established, TCP clients can connect to the endpoint.
- *
- * Future status:
- *   NABTO_CLIENT_EC_OK if opening went ok
- *   NABTO_CLIENT_EC_NOT_FOUND if requesting an unknown service
- *   NABTO_CLIENT_EC_FORBIDDEN if target device did not allow opening a tunnel to specified service for the current client
- *
+ * ```
  *      +--------+          +-----------+               +--------+
  *      | nabto  |   nabto  |   nabto   |   tcp/ip      | remote |
  *   |--+ client +----~~~---+   device  +----~~~-----|--+ server |
  * port | API    |          |           |          port |        |
  *      +--------+           +----------+               +--------+
+ * ```
+ *
+ * @param tunnel [in]     Tunnel handle crated with nabto_client_tcp_tunnel_new.
+ * @param future [in]     The future.
+ * @param service [in]    The service on the remote host to connect to.
+ * @param localPort [in]  The local TCP port to listen on. If the localPort
+ *                        number is 0 the api will choose the port number.
+ * @return a future, when resolved the tunnel is either established or failed. If established, TCP clients can connect to the endpoint.
+ * Future status:
+ *   NABTO_CLIENT_EC_OK if opening went ok
+ *   NABTO_CLIENT_EC_NOT_FOUND if requesting an unknown service
+ *   NABTO_CLIENT_EC_FORBIDDEN if target device did not allow opening a tunnel to specified service for the current client *
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_tcp_tunnel_open(NabtoClientTcpTunnel* tunnel, NabtoClientFuture* future, const char* service, uint16_t localPort);
@@ -1120,6 +1258,8 @@ nabto_client_tcp_tunnel_close(NabtoClientTcpTunnel* tunnel, NabtoClientFuture* f
  * is used when creating the tunnel, this function is used to query
  * what port was choosen.
  *
+ * @param tunnel [in]  The tunnel.
+ * @param localPort [out]  The port number.
  * @return NABTO_CLIENT_EC_OK iff ok
  *         NABTO_CLIENT_EC_INVALID_STATE if the tunnel is not opened.
  */
@@ -1127,18 +1267,109 @@ NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_tcp_tunnel_get_local_port(NabtoClientTcpTunnel* tunnel, uint16_t* localPort);
 
 
-/**************
- * String api *
- **************/
+/*****************
+ * mDNS API
+ ******************/
+
 /**
- * Free a string, some functions returns a null terminated const char*
- * string. Once finished with using the string it has to be freed
- * again.
+ * @intro mDNS API
+ * The mDNS API is used for discovering Nabto Edge devices on the local network.
+ */
+
+typedef struct NabtoClientMdnsResult_ NabtoClientMdnsResult;
+
+typedef enum NabtoClientMdnsAction_ {
+    /**
+     * This action is emitted when a mdns cache item is added.
+     */
+    NABTO_CLIENT_MDNS_ACTION_ADD = 0,
+    /**
+     * This action is emitted when an mdns cache item is updated.
+     */
+    NABTO_CLIENT_MDNS_ACTION_UPDATE = 1,
+    /**
+     * This action is emitted when an mdns cache item is removed,
+     * ie. the ttl has expired for the item.
+     */
+    NABTO_CLIENT_MDNS_ACTION_REMOVE = 2
+} NabtoClientMdnsAction;
+
+/**
+ * Init listener as mdns resolver
  *
- * @param str  The string to free.
+ * Init a mdns result listener. If the subtype is non null or the non
+ * empty string the mDNS subtype <subtype>._sub._nabto._udp.local is
+ * located instead of the mDNS service _nabto._udp.local.
+ * 
+ * @param client [in]  The client.
+ * @param listener [in]  The listener.
+ * @param subtype [in]  The subtype to find.
+ * @return NABTO_CLIENT_EC_OK if ok.
+ */
+NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
+nabto_client_mdns_resolver_init_listener(NabtoClient* client, NabtoClientListener* listener, const char* subtype);
+
+/**
+ * Wait for a new mDNS result.
+ * @param listener [in] The listener.
+ * @param future [in] The future that resolves when new mDNS results are ready. 
+ * @param mdnsResult [out] The result that is ready when the future resolves.
+ */ 
+NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
+nabto_client_listener_new_mdns_result(NabtoClientListener* listener, NabtoClientFuture* future, NabtoClientMdnsResult** mdnsResult);
+
+/**
+ * Free result object
+ * 
+ * @param result [in]  The result to free.
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
-nabto_client_string_free(char* str);
+nabto_client_mdns_result_free(NabtoClientMdnsResult* result);
+
+/**
+ * Get device ID of from result object.
+ * @param result [in]  The result
+ * @return the device ID or the empty string if not set
+ */
+NABTO_CLIENT_DECL_PREFIX const char* NABTO_CLIENT_API
+nabto_client_mdns_result_get_device_id(NabtoClientMdnsResult* result);
+
+/**
+ * Get product ID of from result object.
+ * @return the product ID or the empty string if not set
+ */
+NABTO_CLIENT_DECL_PREFIX const char* NABTO_CLIENT_API
+nabto_client_mdns_result_get_product_id(NabtoClientMdnsResult* result);
+
+/**
+ * Get the service instance name, this can be used to correlate results.
+ * This is never NULL and always defined
+ */
+NABTO_CLIENT_DECL_PREFIX const char* NABTO_CLIENT_API
+nabto_client_mdns_result_get_service_instance_name(NabtoClientMdnsResult* result);
+
+/**
+ * Get the txt record key value pairs as a json encoded string.
+ * The string is owned by the NabtoClientMdnsResult object.
+ *
+ * The data is encoded as { "key1": "value1", "key2": "value2" }
+ */
+NABTO_CLIENT_DECL_PREFIX const char* NABTO_CLIENT_API
+nabto_client_mdns_result_get_txt_items(NabtoClientMdnsResult* result);
+
+/**
+ * Get the NabtoClientMdnsAction action for the result.
+ * @param result 
+ * @return The action enum value, NABTO_CLIENT_MDNS_ACTION_ADD, 
+ *         NABTO_CLIENT_MDNS_ACTION_UPDATE or NABTO_CLIENT_MDNS_ACTION_REMOVE.
+ */
+NABTO_CLIENT_DECL_PREFIX NabtoClientMdnsAction NABTO_CLIENT_API
+nabto_client_mdns_result_get_action(NabtoClientMdnsResult* result);
+
+
+
+
+
 
 /**************
  * Future API
@@ -1179,8 +1410,10 @@ nabto_client_future_new(NabtoClient* context);
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_future_free(NabtoClientFuture* future);
 
-/**
- * Query if a future is ready.
+/*
+ * @deprecated Use nabto_client_future_error_code instead
+ *
+ * Query if a future is ready. Deprecate
  *
  * @param future, the future.
  * @return NABTO_CLIENT_EC_FUTURE_NOT_RESOLVED if the future is not resolved yet.
@@ -1200,6 +1433,10 @@ nabto_client_future_ready(NabtoClientFuture* future);
  *  nabto_client_future_timed_wait
  *  nabto_client_stop
  *  nabto_client_free
+ * 
+ * @param future [in]  The future.
+ * @param callback [in]  The callback.
+ * @param data [in]  User data for the callback.
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_future_set_callback(NabtoClientFuture* future,
@@ -1209,6 +1446,7 @@ nabto_client_future_set_callback(NabtoClientFuture* future,
  * Wait until a future is resolved. The returned error code is that
  * for the underlying operation.
  *
+ * @param future [in]  The future.
  * @return NABTO_CLIENT_EC_* the error code for the underlying operation
  *         NABTO_CLIENT_EC_COULD_BLOCK if called from a future callback.
  */
@@ -1218,15 +1456,20 @@ nabto_client_future_wait(NabtoClientFuture* future);
 /**
  * Wait atmost duration milliseconds for the future to be resolved.
  *
- *  @return NABTO_CLIENT_EC_FUTURE_NOT_RESOLVED if the future is not resolved yet when the timer expires
- *          NABTO_CLIENT_EC_* the error code of the async operation if the future is resolved
- *          NABTO_CLIENT_EC_COULD_BLOCK if called from a future callback.
+ * @param future [in]  The future.
+ * @param duration [in]  The duration.
+ * @return NABTO_CLIENT_EC_FUTURE_NOT_RESOLVED if the future is not resolved yet when the timer expires
+ *         NABTO_CLIENT_EC_* the error code of the async operation if the future is resolved
+ *         NABTO_CLIENT_EC_COULD_BLOCK if called from a future callback.
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_future_timed_wait(NabtoClientFuture* future, nabto_client_duration_t duration);
 
 /**
- * Equivalient to  nabto_client_future_ready
+ * Retrieve error code from a future.
+ * @param future, the future.
+ * @return NABTO_CLIENT_EC_FUTURE_NOT_RESOLVED if the future is not resolved yet.
+ *         NABTO_CLIENT_EC_* the error code of the async operation if the future is resolved
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_future_error_code(NabtoClientFuture* future);
@@ -1253,6 +1496,9 @@ nabto_client_future_error_code(NabtoClientFuture* future);
  *
  * A Listener is an object which can listen for a type of events. The
  * listener is initialized to the specific type of events later.
+ * 
+ * @param context [in]  The context.
+ * @return A new listener.
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientListener* NABTO_CLIENT_API
 nabto_client_listener_new(NabtoClient* context);
@@ -1262,7 +1508,7 @@ nabto_client_listener_new(NabtoClient* context);
  *
  * Free a  event handler.
  *
- * @param eventHandler  Handler to be freed
+ * @param listener  Handler to be freed
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_listener_free(NabtoClientListener* listener);
@@ -1273,6 +1519,8 @@ nabto_client_listener_free(NabtoClientListener* listener);
  * events handler has been stopped the next event or if there's a
  * current unresolved future will resolve imediately with the status
  * code STOPPED.
+ * 
+ * @param listener [in]  The listener.
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_listener_stop(NabtoClientListener* listener);
@@ -1289,15 +1537,33 @@ nabto_client_listener_stop(NabtoClientListener* listener);
 */
 
 /**
+ * Free a string, some functions returns a null terminated const char*
+ * string. Once finished with using the string it has to be freed
+ * again.
+ *
+ * @param str  The string to free.
+ */
+NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
+nabto_client_string_free(char* str);
+
+/**
  * Return an english description of an error code. The returned string
  * must not be freed.
+ * 
+ * @param error [in]  The error for which a message is wanted.
+ * @return the error message.
  */
 NABTO_CLIENT_DECL_PREFIX const char* NABTO_CLIENT_API
 nabto_client_error_get_message(NabtoClientError error);
 
 /**
  * Return the string representation for an error code. The returned
- * string must not be freed.
+ * string must not be freed. 
+ * 
+ * Sample return value NABTO_CLIENT_EC_OK
+ * 
+ * @param error [in]  The error code
+ * @return The error string.
  */
 NABTO_CLIENT_DECL_PREFIX const char* NABTO_CLIENT_API
 nabto_client_error_get_string(NabtoClientError error);
@@ -1305,6 +1571,8 @@ nabto_client_error_get_string(NabtoClientError error);
 /**
  * Return the version of the nabto client library. The returned string
  * must not be freed.
+ * 
+ * @return the version of the client.
  */
 NABTO_CLIENT_DECL_PREFIX const char* NABTO_CLIENT_API
 nabto_client_version();
@@ -1317,6 +1585,11 @@ nabto_client_version();
  * callback as that would result in a deadlock. If it's needed to
  * react on a log message a queue is needed such that the invocation
  * of the nabto client sdk can occur from another thread.
+ * 
+ * @param context [in]: The NabtoClient context to set the log callback on.
+ * @param callback [in]: The callback function.
+ * @param data [in]: Passed to the callback along with the log data.
+ * @return NABTO_CLIENT_EC_OK if ok.
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
 nabto_client_set_log_callback(NabtoClient* context, NabtoClientLogCallback callback, void* data);
@@ -1335,8 +1608,8 @@ nabto_client_set_log_callback(NabtoClient* context, NabtoClientLogCallback callb
  *
  * Each severity level includes all the less severe levels.
  *
+ * @param context [in]: The NabtoClient context to set the log level on.
  * @param level: The log level: error, warn, info, debug or trace
- *
  * @return NABTO_CLIENT_EC_INVALID_ARGUMENT if invalid level, NABTO_CLIENT_EC_OK iff successfully
  * set
  */

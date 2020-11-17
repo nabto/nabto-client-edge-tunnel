@@ -3,3 +3,5 @@ install
 *#
 *~
 .gdb_history
+callgrind*
+perf.data*

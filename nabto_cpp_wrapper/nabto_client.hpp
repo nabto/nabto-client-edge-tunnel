@@ -39,7 +39,14 @@ class Status {
     static const int NONE;
     static const int NOT_ATTACHED;
     static const int TOKEN_REJECTED;
+    static const int COULD_BLOCK;
     static const int UNAUTHORIZED;
+    static const int TOO_MANY_REQUESTS;
+    static const int UNKNOWN_PRODUCT_ID;
+    static const int UNKNOWN_DEVICE_ID;
+    static const int UNKNOWN_SERVER_KEY;
+    static const int CONNECTION_REFUSED;
+    static const int INTERNAL_ERROR;
 
     Status(int errorCode) : errorCode_(errorCode) {}
     bool ok() const;
@@ -211,6 +218,11 @@ class ConnectionEventsCallback {
 
 class Connection {
  public:
+    enum Type {
+        RELAY,
+        DIRECT
+    };
+
     virtual ~Connection() {};
     virtual void setProductId(const std::string& productId) = 0;
     virtual void setDeviceId(const std::string& deviceId) = 0;
@@ -223,10 +235,13 @@ class Connection {
     virtual void setPrivateKey(const std::string& privateKey) = 0;
     virtual void setOptions(const std::string& options) = 0;
     virtual std::string getOptions() = 0;
-    virtual std::string getDeviceFingerprintHex() = 0;
-    virtual std::string getClientFingerprintHex() = 0;
-    virtual std::string getDeviceFingerprintFullHex() = 0;
-    virtual std::string getClientFingerprintFullHex() = 0;
+    virtual std::string getDeviceFingerprint() = 0;
+    virtual std::string getClientFingerprint() = 0;
+    virtual Type getType() = 0;
+    //virtual std::string getDeviceFingerprintHex() = 0;
+    //virtual std::string getClientFingerprintHex() = 0;
+    // virtual std::string getDeviceFingerprintFullHex() = 0;
+    // virtual std::string getClientFingerprintFullHex() = 0;
     virtual std::string getInfo() = 0;
     virtual int getLocalChannelErrorCode() = 0;
     virtual int getRemoteChannelErrorCode() = 0;

@@ -38,7 +38,14 @@ const int Status::UNKNOWN =  NABTO_CLIENT_EC_UNKNOWN;
 const int Status::NONE = NABTO_CLIENT_EC_NONE;
 const int Status::NOT_ATTACHED = NABTO_CLIENT_EC_NOT_ATTACHED;
 const int Status::TOKEN_REJECTED = NABTO_CLIENT_EC_TOKEN_REJECTED;
+const int Status::COULD_BLOCK = NABTO_CLIENT_EC_COULD_BLOCK;
 const int Status::UNAUTHORIZED = NABTO_CLIENT_EC_UNAUTHORIZED;
+const int Status::TOO_MANY_REQUESTS = NABTO_CLIENT_EC_TOO_MANY_REQUESTS;
+const int Status::UNKNOWN_PRODUCT_ID = NABTO_CLIENT_EC_UNKNOWN_PRODUCT_ID;
+const int Status::UNKNOWN_DEVICE_ID = NABTO_CLIENT_EC_UNKNOWN_DEVICE_ID;
+const int Status::UNKNOWN_SERVER_KEY = NABTO_CLIENT_EC_UNKNOWN_SERVER_KEY;
+const int Status::CONNECTION_REFUSED = NABTO_CLIENT_EC_CONNECTION_REFUSED;
+const int Status::INTERNAL_ERROR = NABTO_CLIENT_EC_INTERNAL_ERROR;
 
 
 const char* Status::getDescription() const {
@@ -499,7 +506,7 @@ class TcpTunnelImpl : public TcpTunnel {
 
 class ConnectionImpl;
 
-class ConnectionEventsListenerImpl {
+class ConnectionEventsListenerImpl : public std::enable_shared_from_this<ConnectionEventsListenerImpl> {
  public:
     ConnectionEventsListenerImpl(NabtoClient* context, NabtoClientConnection* connection, std::shared_ptr<ConnectionImpl> connectionImpl);
 
@@ -509,6 +516,7 @@ class ConnectionEventsListenerImpl {
         if (ec) {
             throw NabtoException(ec);
         }
+        selfReference_ = shared_from_this();
         listen();
     }
 
@@ -520,6 +528,10 @@ class ConnectionEventsListenerImpl {
         nabto_client_future_set_callback(future_, ConnectionEventsListenerImpl::futureCallback, this);
     }
 
+    void stopped() {
+        selfReference_.reset();
+    }
+
     static void futureCallback(NabtoClientFuture* future, NabtoClientError ec, void* data);
 
     void stop() {
@@ -527,6 +539,7 @@ class ConnectionEventsListenerImpl {
     }
 
  private:
+    std::shared_ptr<ConnectionEventsListenerImpl> selfReference_;
     NabtoClientConnection* connection_;
     std::weak_ptr<ConnectionImpl> connectionImpl_;
     int event_;
@@ -638,10 +651,10 @@ class ConnectionImpl : public Connection, public std::enable_shared_from_this<Co
         return str;
     }
 
-    std::string getDeviceFingerprintHex()
+    std::string getDeviceFingerprint()
     {
         char* f;
-        auto ec = nabto_client_connection_get_device_fingerprint_hex(connection_, &f);
+        auto ec = nabto_client_connection_get_device_fingerprint(connection_, &f);
         if (ec) {
             throw NabtoException(ec);
         }
@@ -650,21 +663,10 @@ class ConnectionImpl : public Connection, public std::enable_shared_from_this<Co
         return str;
     }
 
-    std::string getClientFingerprintHex()
+    std::string getClientFingerprint()
     {
         char* f;
-        auto ec = nabto_client_connection_get_client_fingerprint_hex(connection_, &f);
-        if (ec) {
-            throw NabtoException(ec);
-        }
-        auto str = std::string(f);
-        nabto_client_string_free(f);
-        return str;
-    }
-    std::string getDeviceFingerprintFullHex()
-    {
-        char* f;
-        auto ec = nabto_client_connection_get_device_fingerprint_full_hex(connection_, &f);
+        auto ec = nabto_client_connection_get_client_fingerprint(connection_, &f);
         if (ec) {
             throw NabtoException(ec);
         }
@@ -673,16 +675,20 @@ class ConnectionImpl : public Connection, public std::enable_shared_from_this<Co
         return str;
     }
 
-    std::string getClientFingerprintFullHex()
+    Connection::Type getType()
     {
-        char* f;
-        auto ec = nabto_client_connection_get_client_fingerprint_full_hex(connection_, &f);
+        NabtoClientConnectionType type;
+        auto ec = nabto_client_connection_get_type(connection_, &type);
         if (ec) {
             throw NabtoException(ec);
         }
-        auto str = std::string(f);
-        nabto_client_string_free(f);
-        return str;
+
+        switch (type) {
+            case NABTO_CLIENT_CONNECTION_TYPE_RELAY: return Connection::Type::RELAY;
+            case NABTO_CLIENT_CONNECTION_TYPE_DIRECT: return Connection::Type::DIRECT;
+            default:
+                throw NabtoException(NABTO_CLIENT_EC_UNKNOWN);
+        }
     }
 
     std::string getInfo()

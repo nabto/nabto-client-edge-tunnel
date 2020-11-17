@@ -18,7 +18,7 @@ static bool interactive_pair_connection(std::shared_ptr<nabto::client::Connectio
 
 static bool handle_already_paired(std::shared_ptr<nabto::client::Connection> connection, const std::string& directCandidate = "")
 {
-    auto device = Configuration::GetPairedDevice(connection->getDeviceFingerprintFullHex());
+    auto device = Configuration::GetPairedDevice(connection->getDeviceFingerprint());
     if (device) {
         std::cout << "The client is alredy paired with the device the pairing has the bookmark " << device->getIndex() << std::endl;
         return true;
@@ -434,7 +434,7 @@ bool write_config(std::shared_ptr<nabto::client::Connection> connection, const s
 
     device.productId_ = pi->getProductId();
     device.deviceId_ = pi->getDeviceId();
-    device.deviceFingerprint_ = connection->getDeviceFingerprintFullHex();
+    device.deviceFingerprint_ = connection->getDeviceFingerprint();
     if (!host.empty()) {
         device.directCandidate_ = host;
     }

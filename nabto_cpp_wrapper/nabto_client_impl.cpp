@@ -23,6 +23,9 @@ void ConnectionEventsListenerImpl::futureCallback(NabtoClientFuture* future, Nab
             connection->notifyEvent((int)listener->event_);
             listener->listen();
         }
+    } else {
+        // no more events
+        listener->stopped();
     }
 }
 
