@@ -9,6 +9,12 @@ find_package(Threads)
 include_directories(include .)
 include_directories(include/3rdparty)
 
+add_custom_target(GENERATE_VERSION ALL
+  WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}
+  BYPRODUCTS ${CMAKE_CURRENT_SOURCE_DIR}/src/version.cpp
+  COMMAND ${CMAKE_COMMAND} -P
+  ${CMAKE_CURRENT_SOURCE_DIR}/version.cmake
+  )
 
 if(WIN32)
     link_directories(${CMAKE_SOURCE_DIR}/lib/windows)
@@ -32,10 +38,13 @@ set(src
     src/timestamp.cpp
     src/iam.cpp
     src/iam_interactive.cpp
+    src/version.cpp
 )
 
 add_executable(edge_tunnel_client ${platform_src} ${src})
 target_link_libraries(edge_tunnel_client cpp_wrapper ${CMAKE_THREAD_LIBS_INIT})
+
+add_dependencies(edge_tunnel_client GENERATE_VERSION)
 
 install(TARGETS edge_tunnel_client RUNTIME DESTINATION .
         PERMISSIONS OWNER_WRITE OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)

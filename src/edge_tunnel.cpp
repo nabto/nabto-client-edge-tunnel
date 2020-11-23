@@ -6,6 +6,7 @@
 #include "timestamp.hpp"
 #include "iam.hpp"
 #include "iam_interactive.hpp"
+#include "version.hpp"
 
 #include <3rdparty/cxxopts.hpp>
 #include <3rdparty/nlohmann/json.hpp>
@@ -17,6 +18,8 @@
 #include <future>
 
 using json = nlohmann::json;
+
+const std::string appName = "edge_tunnel_client";
 
 enum {
   COAP_CONTENT_FORMAT_APPLICATION_CBOR = 60
@@ -130,6 +133,8 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
     auto connection = context->createConnection();
     connection->setProductId(device.getProductId());
     connection->setDeviceId(device.getDeviceId());
+    connection->setApplicationName(appName);
+    connection->setApplicationVersion(edge_tunnel_client_version());
 
     if (!device.getDirectCandidate().empty()) {
         connection->enableDirectCandidates();
@@ -352,7 +357,7 @@ int main(int argc, char** argv)
 
         if (result.count("version"))
         {
-            std::cout << "nabto_client_sdk: " << nabto::client::Context::version() << std::endl;
+            std::cout << edge_tunnel_client_version() << std::endl;
             return 0;
         }
 

@@ -5,3 +5,4 @@ install
 .gdb_history
 callgrind*
 perf.data*
+src/version.cpp
