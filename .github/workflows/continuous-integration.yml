@@ -51,23 +51,27 @@ jobs:
       - name: Make asset files
         run: |
           cd ${{ github.workspace }}/artifacts
-          pushd Linux-artifact
-          tar -cfz ${{ github.workspace }}/artifacts/linux.tar.gz ./*
-          popd
-          pushd Windows-artifact
-          zip -r ${{ github.workspace }}/artifacts/windows.zip ./*
-          popd
-          pushd macOS-artifact
-          zip -cfz ${{ github.workspace }}/artifacts/macos.tar.gz ./*
-          popd
+
+          mv Linux-artifacts edge_tunnel_client
+          tar -cfz ${{ github.workspace }}/artifacts/edge_tunnel_client-linux.tar.gz edge_tunnel_client
+          rm -r edge_tunnel_client
+
+          mv Windows-artifacts edge_tunnel_client
+          zip -r ${{ github.workspace }}/artifacts/edge_tunnel_client-windows.zip edge_tunnel_client
+          rm  -r edge_tunnel_client
+
+          mv macO-Snordartifacts edge_tunnel_client
+          zip -cfz ${{ github.workspace }}/artifacts/edge_tunnel_client-macos.tar.gz edge_tunnel_client
+          rm -r edge_tunnel_client
+
       - name: Upload Linux asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ github.workspace }}/artifacts/linux.tar.gz
-          asset_name: linux.tar.gz
+          asset_path: ${{ github.workspace }}/artifacts/edge_tunnel_client-linux.tar.gz
+          asset_name: edge_tunnel_client-linux.tar.gz
           asset_content_type: application/gzip
       - name: Upload Windows asset
         uses: actions/upload-release-asset@v1
@@ -75,8 +79,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ github.workspace }}/artifacts/windows.zip
-          asset_name: windows.zip
+          asset_path: ${{ github.workspace }}/artifacts/edge_tunnel_client-windows.zip
+          asset_name: edge_tunnel_client-windows.zip
           asset_content_type: application/zip
       - name: Upload MacOS asset
         uses: actions/upload-release-asset@v1
@@ -84,6 +88,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ github.workspace }}/artifacts/macos.tar.gz
-          asset_name: macos.tar.gz
+          asset_path: ${{ github.workspace }}/artifacts/edge_tunnel_client-macos.tar.gz
+          asset_name: edge_tunnel_client-macos.tar.gz
           asset_content_type: application/gzip
