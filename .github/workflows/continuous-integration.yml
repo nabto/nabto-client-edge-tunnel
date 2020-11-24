@@ -53,6 +53,7 @@ jobs:
           cd ${{ github.workspace }}/artifacts
 
           mv Linux-artifact edge_tunnel_client
+          chmod +x edge_tunnel_client/edge_tunnel_client
           tar -czf ${{ github.workspace }}/artifacts/edge_tunnel_client-linux.tar.gz edge_tunnel_client
           rm -r edge_tunnel_client
 
@@ -61,6 +62,7 @@ jobs:
           rm  -r edge_tunnel_client
 
           mv macOS-artifact edge_tunnel_client
+          chmod +x edge_tunnel_client/edge_tunnel_client
           tar -czf ${{ github.workspace }}/artifacts/edge_tunnel_client-macos.tar.gz edge_tunnel_client
           rm -r edge_tunnel_client
 
