@@ -1,5 +1,7 @@
 build
 install
+_build
+_install
 *#
 *~
 .gdb_history
