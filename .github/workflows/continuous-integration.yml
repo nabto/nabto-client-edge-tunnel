@@ -52,15 +52,15 @@ jobs:
         run: |
           cd ${{ github.workspace }}/artifacts
 
-          mv Linux-artifacts edge_tunnel_client
+          mv Linux-artifact edge_tunnel_client
           tar -cfz ${{ github.workspace }}/artifacts/edge_tunnel_client-linux.tar.gz edge_tunnel_client
           rm -r edge_tunnel_client
 
-          mv Windows-artifacts edge_tunnel_client
+          mv Windows-artifact edge_tunnel_client
           zip -r ${{ github.workspace }}/artifacts/edge_tunnel_client-windows.zip edge_tunnel_client
           rm  -r edge_tunnel_client
 
-          mv macO-Snordartifacts edge_tunnel_client
+          mv macOS-artifact edge_tunnel_client
           zip -cfz ${{ github.workspace }}/artifacts/edge_tunnel_client-macos.tar.gz edge_tunnel_client
           rm -r edge_tunnel_client
 
