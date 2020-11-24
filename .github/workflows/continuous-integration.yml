@@ -61,7 +61,7 @@ jobs:
           rm  -r edge_tunnel_client
 
           mv macOS-artifact edge_tunnel_client
-          zip -czf ${{ github.workspace }}/artifacts/edge_tunnel_client-macos.tar.gz edge_tunnel_client
+          tar -czf ${{ github.workspace }}/artifacts/edge_tunnel_client-macos.tar.gz edge_tunnel_client
           rm -r edge_tunnel_client
 
       - name: Upload Linux asset
