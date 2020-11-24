@@ -15,7 +15,7 @@ jobs:
     strategy:
       matrix:
         os: [windows-2019, ubuntu-18.04, macos-10.15]
-    
+
     steps:
       - uses: actions/checkout@v2
 
@@ -52,13 +52,13 @@ jobs:
         run: |
           cd ${{ github.workspace }}/artifacts
           pushd Linux-artifact
-          zip -r ${{ github.workspace }}/artifacts/linux-asset.zip ./*
+          tar -cfz ${{ github.workspace }}/artifacts/linux.tar.gz ./*
           popd
           pushd Windows-artifact
-          zip -r ${{ github.workspace }}/artifacts/windows-asset.zip ./*
+          zip -r ${{ github.workspace }}/artifacts/windows.zip ./*
           popd
           pushd macOS-artifact
-          zip -r ${{ github.workspace }}/artifacts/macos-asset.zip ./*
+          zip -cfz ${{ github.workspace }}/artifacts/macos.tar.gz ./*
           popd
       - name: Upload Linux asset
         uses: actions/upload-release-asset@v1
@@ -66,17 +66,17 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ github.workspace }}/artifacts/linux-asset.zip
-          asset_name: linux-asset.zip
-          asset_content_type: application/zip
+          asset_path: ${{ github.workspace }}/artifacts/linux.tar.gz
+          asset_name: linux.tar.gz
+          asset_content_type: application/gzip
       - name: Upload Windows asset
         uses: actions/upload-release-asset@v1
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ github.workspace }}/artifacts/windows-asset.zip
-          asset_name: windows-asset.zip
+          asset_path: ${{ github.workspace }}/artifacts/windows.zip
+          asset_name: windows.zip
           asset_content_type: application/zip
       - name: Upload MacOS asset
         uses: actions/upload-release-asset@v1
@@ -84,6 +84,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ github.workspace }}/artifacts/macos-asset.zip
-          asset_name: macos-asset.zip
-          asset_content_type: application/zip
+          asset_path: ${{ github.workspace }}/artifacts/macos.tar.gz
+          asset_name: macos.tar.gz
+          asset_content_type: application/gzip
