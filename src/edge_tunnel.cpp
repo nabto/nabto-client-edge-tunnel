@@ -357,7 +357,7 @@ int main(int argc, char** argv)
 
         if (result.count("version"))
         {
-            std::cout << edge_tunnel_client_version() << std::endl;
+            std::cout << edge_tunnel_client_version() << " (SDK version " << nabto_client_version() << ")" << std::endl;
             return 0;
         }
 
