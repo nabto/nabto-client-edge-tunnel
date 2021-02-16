@@ -1,4 +1,4 @@
-# Nabto Client Edge Tunnel
+# Nabto Edge Tunnel CLI
 Tunnelling client application for Nabto Edge
 
 ## Building
