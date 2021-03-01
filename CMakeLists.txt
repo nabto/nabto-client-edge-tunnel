@@ -17,6 +17,8 @@ add_custom_target(GENERATE_VERSION ALL
   )
 
 if(WIN32)
+    include(InstallRequiredSystemLibraries)
+
     link_directories(${CMAKE_SOURCE_DIR}/lib/windows)
 elseif(UNIX AND NOT APPLE)
     add_library(nabto_client SHARED IMPORTED)
@@ -50,6 +52,7 @@ install(TARGETS edge_tunnel_client RUNTIME DESTINATION .
         PERMISSIONS OWNER_WRITE OWNER_READ OWNER_EXECUTE GROUP_READ GROUP_EXECUTE WORLD_READ WORLD_EXECUTE)
 if(WIN32)
     install(FILES ${CMAKE_SOURCE_DIR}/lib/windows/nabto_client.dll DESTINATION .)
+    install(FILES ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS} DESTINATION . COMPONENT Libraries)
 elseif(UNIX AND NOT APPLE)
     install(FILES ${CMAKE_SOURCE_DIR}/lib/linux/libnabto_client.so DESTINATION .)
 elseif(APPLE)
