@@ -20,6 +20,7 @@ class IAMError {
     IAMError(const std::string& message);
 
     bool ok();
+    uint16_t statusCode();
     void printError();
     void printError(const std::string& action);
 

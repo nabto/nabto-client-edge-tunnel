@@ -51,6 +51,10 @@ IAMError::IAMError(const std::string& message)
 
 bool IAMError::ok() { return ok_; }
 
+uint16_t IAMError::statusCode() {
+    return statusCode_;
+}
+
 void IAMError::printError()
 {
     if (ok_) {
@@ -223,7 +227,7 @@ IAMError set_password(std::shared_ptr<nabto::client::Connection> connection, con
     } catch (nabto::client::NabtoException& e) {
         return IAMError(e);
     }
-    
+
 }
 
 std::pair<IAMError, std::unique_ptr<User> > create_user(
@@ -241,7 +245,7 @@ std::pair<IAMError, std::unique_ptr<User> > create_user(
         auto cbor = coap->getResponsePayload();
 
         json user = json::from_cbor(cbor);
-                
+
         std::unique_ptr<User> decoded = User::create(user);
         return std::make_pair(IAMError(), std::move(decoded));
     } else {
