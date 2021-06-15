@@ -16,6 +16,7 @@ ConnectionEventsListenerImpl::~ConnectionEventsListenerImpl() {
     nabto_client_future_free(future_);
 }
 void ConnectionEventsListenerImpl::futureCallback(NabtoClientFuture* future, NabtoClientError ec, void* data) {
+    (void) future;
     ConnectionEventsListenerImpl* listener = (ConnectionEventsListenerImpl*)data;
     if (ec == NABTO_CLIENT_EC_OK) {
         auto connection = listener->connectionImpl_.lock();

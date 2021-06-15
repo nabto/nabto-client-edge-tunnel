@@ -89,6 +89,7 @@ class FutureBufferImpl : public FutureBuffer, public std::enable_shared_from_thi
     }
     static void doCallback(NabtoClientFuture* future, NabtoClientError ec, void* data)
     {
+        (void) future;
         FutureBufferImpl* self = (FutureBufferImpl*)data;
         self->ended_ = true;
         self->cb_->run(Status(ec));
@@ -202,6 +203,7 @@ class FutureMdnsResultImpl : public FutureMdnsResult, public std::enable_shared_
     }
     static void doCallback(NabtoClientFuture* future, NabtoClientError ec, void* data)
     {
+        (void) future;
         FutureMdnsResultImpl* self = (FutureMdnsResultImpl*)data;
         self->ended_ = true;
         self->cb_->run(Status(ec));
@@ -274,6 +276,7 @@ class FutureVoidImpl : public FutureVoid, public std::enable_shared_from_this<Fu
 
     static void doCallback(NabtoClientFuture* future, NabtoClientError ec, void* data)
     {
+        (void) future;
         FutureVoidImpl* self = (FutureVoidImpl*)data;
         self->ended_ = true;
         self->cb_->run(Status(ec));
