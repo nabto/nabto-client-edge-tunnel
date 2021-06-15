@@ -28,7 +28,7 @@ int interactive_choice(const std::string message, size_t min, size_t maxPlusOne)
         try {
             choice = std::atoi(input.c_str());
 
-            if (choice >= min && choice < maxPlusOne) {
+            if (static_cast<size_t>(choice) >= min && static_cast<size_t>(choice) < maxPlusOne) {
                 return choice;
             }
 
