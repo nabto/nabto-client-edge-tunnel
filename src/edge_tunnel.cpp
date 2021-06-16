@@ -196,7 +196,7 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
 static void get_service(std::shared_ptr<nabto::client::Connection> connection, const std::string& service);
 static void print_service(const nlohmann::json& service);
 
-bool list_services(std::shared_ptr<nabto::client::Connection> connection, const Configuration::DeviceInfo& device)
+bool list_services(std::shared_ptr<nabto::client::Connection> connection)
 {
     auto coap = connection->createCoap("GET", "/tcp-tunnels/services");
     coap->execute()->waitForResult();
@@ -269,7 +269,7 @@ bool split_in_service_and_port(const std::string& in, std::string& service, uint
     return true;
 }
 
-bool tcptunnel(std::shared_ptr<nabto::client::Connection> connection, std::vector<std::string> services, const Configuration::DeviceInfo& device)
+bool tcptunnel(std::shared_ptr<nabto::client::Connection> connection, std::vector<std::string> services)
 {
     std::vector<std::shared_ptr<nabto::client::TcpTunnel> > tunnels;
 
@@ -450,9 +450,9 @@ int main(int argc, char** argv)
 
             bool status = false;
             if (result.count("services")) {
-                status = list_services(connection, *Device);
+                status = list_services(connection);
             } else if (result.count("service")) {
-                status = tcptunnel(connection, services, *Device);
+                status = tcptunnel(connection, services);
             } else if (result.count("users")) {
                 status = IAM::list_users(connection);
             } else if (result.count("roles")) {

@@ -213,7 +213,7 @@ class ConnectionEventsCallback {
     static int CHANNEL_CHANGED();
 
     virtual ~ConnectionEventsCallback() {}
-    virtual void onEvent(int event) {}
+    virtual void onEvent(int event) = 0;
 };
 
 class Connection {

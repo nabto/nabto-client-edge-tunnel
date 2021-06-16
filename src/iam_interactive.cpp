@@ -28,7 +28,7 @@ int interactive_choice(const std::string message, size_t min, size_t maxPlusOne)
         try {
             choice = std::atoi(input.c_str());
 
-            if (choice >= min && choice < maxPlusOne) {
+            if (static_cast<size_t>(choice) >= min && static_cast<size_t>(choice) < maxPlusOne) {
                 return choice;
             }
 
@@ -169,11 +169,12 @@ bool list_roles(std::shared_ptr<nabto::client::Connection> connection)
             std::cout << "[" << i << "]: " << role << std::endl;
             i++;
         }
-        return true;
+        result = true;
     } else {
         ec.printError();
+        result = false;
     }
-    return false;
+    return result;
 }
 
 
@@ -220,7 +221,6 @@ bool set_role_interactive(std::shared_ptr<nabto::client::Connection> connection)
     std::stringstream path;
     path << "/iam/users/" << username << "/role/" << role;
 
-    char answer;
     std::stringstream message{};
     message << "Assign the role \"" << role << "\" to the user \"" << username << "\"? ";
     bool yes = yn_prompt(message.str());
@@ -284,7 +284,6 @@ bool delete_user_interactive(std::shared_ptr<nabto::client::Connection> connecti
     bool yes = yn_prompt(message.str());
     if (yes)
     {
-        bool status = false;
         auto coap = connection->createCoap("DELETE", path.str());
         try
         {

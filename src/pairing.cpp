@@ -28,12 +28,6 @@ static bool handle_already_paired(std::shared_ptr<nabto::client::Connection> con
     }
 }
 
-// arg Character should be lowercase.
-static bool is_char_case_insensitive(char Subject, char Character) {
-    return (Character >= 'a' && Character <= 'z') &&
-           (Subject == Character || Subject == (Character - 32));
-}
-
 static bool local_pair_open_interactive(std::shared_ptr<nabto::client::Connection> connection)
 {
     std::string username;

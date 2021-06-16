@@ -261,7 +261,7 @@ bool WriteStateFile()
 
 std::unique_ptr<DeviceInfo> GetPairedDevice(int index)
 {
-    if (index >= 0 && Configuration.Bookmarks.size() > index)
+    if (index >= 0 && Configuration.Bookmarks.size() > static_cast<unsigned int>(index))
     {
         auto device = std::make_unique<DeviceInfo>(Configuration.Bookmarks[index]);
         device->index_ = index;
