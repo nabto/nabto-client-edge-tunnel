@@ -188,7 +188,7 @@ typedef struct NabtoClientListener_ NabtoClientListener;
  */
 typedef void (*NabtoClientFutureCallback)(NabtoClientFuture* future, NabtoClientError error, void* data);
 
-/**
+/* TODO nabtodoc
  * This struct contains the data to be logged.
  */
 typedef struct NabtoClientLogMessage_ {
@@ -226,7 +226,7 @@ nabto_client_new();
  *
  * If stop has not been called prior to this function, free can block
  * until all io operations has finished.
- * 
+ *
  * @param context [in]  The context
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
@@ -291,7 +291,7 @@ nabto_client_connection_free(NabtoClientConnection* connection);
  * any more.
  *
  * Stop can be used if the user cancels a connect/close request.
- * 
+ *
  * @param connection [in]  The connection.
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
@@ -329,6 +329,14 @@ nabto_client_connection_stop(NabtoClientConnection* connection);
  * - KeepAliveMaxRetries: unsigned integer default 15
  * ```
  *
+ * Set the timeout for getting the first DTLS packet back from the device. This is used to make a
+ * connection attempt fail faster if a route to the device is believed to be open, when in fact it
+ * is not. Eg. if the device lost its connection to the Nabto Server, but the server has yet to
+ * detect the disconnect.
+ * ```
+ * - DtlsHelloTimeout: unsigned integer in milliseconds, default 10000
+ * ```
+ *
  * Control which connections features to use.
  *
  * Set local to enable/disable local connections
@@ -355,7 +363,7 @@ nabto_client_connection_stop(NabtoClientConnection* connection);
  * ```
  *
  * Example force local connections:
- * 
+ *
  * ```
  * std::string options = R"(
  * {
@@ -504,11 +512,11 @@ nabto_client_connection_set_server_jwt_token(NabtoClientConnection* connection,
  * server requires a valid Server Connect Token before it allows the connect.
  *
  * This authorization method is distinct from the JWT token concept.
- * 
+ *
  * This needs to be set before nabto_client_connect is called.
- * 
+ *
  * @param connection [in]  The connection.
- * @param sct [in]  The Server Connect Token. 
+ * @param sct [in]  The Server Connect Token.
  * @return NABTO_CLIENT_EC_OK  if the token is set.
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
@@ -642,7 +650,7 @@ nabto_client_connection_get_type(NabtoClientConnection* connection, NabtoClientC
  * Enable direct communication for a connection, using candidates
  * provided by the nabto_client_connection_add_direct_candidate
  * function.
- * 
+ *
  * Direct connections is a way to make the client create a connection
  * to a device which can be reached directly with ip communication.
  *
@@ -717,7 +725,7 @@ nabto_client_connection_end_of_direct_candidates(NabtoClientConnection* connecti
  *         nabto_client_connection_get_info for what went wrong.
  *         NABTO_CLIENT_EC_NOT_CONNECTED if the the connection failed for some
  *         unspecified reason.
- *         NABTO_CLIENT_EC_INTERNAL_ERROR if the device encountered an internal 
+ *         NABTO_CLIENT_EC_INTERNAL_ERROR if the device encountered an internal
  *         error during the connect attempt. This is most likely due to no more
  *         connection resources available in the device.
  *
@@ -727,8 +735,9 @@ NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_connection_connect(NabtoClientConnection* connection, NabtoClientFuture* future);
 
 /**
- * Gracefully close a connection, and the connection. Non-graceful
- * closedown can be made using the free function.
+ * Gracefully close a connection (send explicit close to the other peer). Any CoAP requests or
+ * streams using the connection are forcefully closed. Non-graceful close can be made using the
+ * free function.
  *
  * When the future returns with NABTO_CLIENT_EC_OK, the connection is
  * closed.
@@ -753,7 +762,7 @@ nabto_client_connection_get_local_channel_error_code(NabtoClientConnection* conn
 
 /**
  * Get error code for the remote channel
- * 
+ *
  * @param connection [in]  The connection on which the remote channel is opened for which the error should be retrieved.
  * @return NABTO_CLIENT_EC_OK  if a remote relay channel was made.
  *         NABTO_CLIENT_EC_NONE  if remote relay was not enabled.
@@ -800,7 +809,7 @@ nabto_client_connection_get_direct_candidates_channel_error_code(NabtoClientConn
  * relay was created.
  *
  * The returned json needs to be freed with nabto_client_string_free
- * 
+ *
  * @deprecated
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientError NABTO_CLIENT_API
@@ -919,7 +928,7 @@ nabto_client_stream_free(NabtoClientStream* stream);
  * it forces the stream to stop. Outstanding read/write/close callbacks will be
  * resolved as the stream is forcefully stopped. The function is not blocking so
  * the actual callbacks may not be resolved until this function returns.
- * 
+ *
  * @param stream [in]  The stream.
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
@@ -1005,7 +1014,7 @@ nabto_client_stream_read_some(NabtoClientStream* stream, NabtoClientFuture* futu
  * Future status:
  * NABTO_CLIENT_EC_OK if write was ok, the buffer is fully copied
  *   into the streaming buffers, but not neccessarily sent or acknowledgeg by the other end yet.
- * NABTO_CLIENT_STREAM_CLOSED if the stream is closed for writing.
+ * NABTO_CLIENT_EC_STREAM_CLOSED if the stream is closed for writing.
  * NABTO_CLIENT_EC_ABORTED if the stream is aborted.
  * NABTO_CLIENT_EC_OPERATION_IN_PROGRESS if another write is in progress.
  */
@@ -1086,7 +1095,7 @@ nabto_client_coap_free(NabtoClientCoap* coap);
  * Stop a coap request. This stops outstanding
  * nabto_client_coap_execute calls. The request should not be used
  * after it has been stopped.
- * 
+ *
  * @param coap [in]  The CoAP request.
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
@@ -1112,9 +1121,9 @@ nabto_client_coap_set_request_payload(NabtoClientCoap* coap, uint16_t contentFor
  *
  * If an error occurs such that the statusCode is not set on the
  * response, the future will not return NABTO_CLIENT_EC_OK, but an
- * apporpriate error code. If a response is not received within 2 min,
+ * appropriate error code. If a response is not received within 2 min,
  * the future will return NABTO_CLIENT_EC_TIMEOUT.
- * 
+ *
  * @param request [in] The CoAP request to execute.
  * @param future [in] The future completes when the CoAP request completes or fails.
  */
@@ -1205,7 +1214,7 @@ nabto_client_tcp_tunnel_free(NabtoClientTcpTunnel* tunnel);
  * open and close. But the tcp tunnel cannot be used after it has been
  * stopped. So you cannot call open, then stop and then resume the
  * open again.
- * 
+ *
  * @param tunnel [in]  The tunnel.
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
@@ -1215,6 +1224,7 @@ nabto_client_tcp_tunnel_stop(NabtoClientTcpTunnel* tunnel);
  * Opens a TCP tunnel to a TCP server through a Nabto enabled device
  * connected to earlier. The ip address of the server is configured in
  * the device. Often it is configured to localhost.
+ *
  * ```
  *      +--------+          +-----------+               +--------+
  *      | nabto  |   nabto  |   nabto   |   tcp/ip      | remote |
@@ -1272,22 +1282,22 @@ nabto_client_tcp_tunnel_get_local_port(NabtoClientTcpTunnel* tunnel, uint16_t* l
  ******************/
 
 /**
- * @intro mDNS API
+ * @intro mDNS
  * The mDNS API is used for discovering Nabto Edge devices on the local network.
  */
 
 typedef struct NabtoClientMdnsResult_ NabtoClientMdnsResult;
 
 typedef enum NabtoClientMdnsAction_ {
-    /**
+    /*
      * This action is emitted when a mdns cache item is added.
      */
     NABTO_CLIENT_MDNS_ACTION_ADD = 0,
-    /**
+    /*
      * This action is emitted when an mdns cache item is updated.
      */
     NABTO_CLIENT_MDNS_ACTION_UPDATE = 1,
-    /**
+    /*
      * This action is emitted when an mdns cache item is removed,
      * ie. the ttl has expired for the item.
      */
@@ -1300,7 +1310,7 @@ typedef enum NabtoClientMdnsAction_ {
  * Init a mdns result listener. If the subtype is non null or the non
  * empty string the mDNS subtype <subtype>._sub._nabto._udp.local is
  * located instead of the mDNS service _nabto._udp.local.
- * 
+ *
  * @param client [in]  The client.
  * @param listener [in]  The listener.
  * @param subtype [in]  The subtype to find.
@@ -1312,15 +1322,15 @@ nabto_client_mdns_resolver_init_listener(NabtoClient* client, NabtoClientListene
 /**
  * Wait for a new mDNS result.
  * @param listener [in] The listener.
- * @param future [in] The future that resolves when new mDNS results are ready. 
+ * @param future [in] The future that resolves when new mDNS results are ready.
  * @param mdnsResult [out] The result that is ready when the future resolves.
- */ 
+ */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
 nabto_client_listener_new_mdns_result(NabtoClientListener* listener, NabtoClientFuture* future, NabtoClientMdnsResult** mdnsResult);
 
 /**
  * Free result object
- * 
+ *
  * @param result [in]  The result to free.
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
@@ -1359,8 +1369,9 @@ nabto_client_mdns_result_get_txt_items(NabtoClientMdnsResult* result);
 
 /**
  * Get the NabtoClientMdnsAction action for the result.
- * @param result 
- * @return The action enum value, NABTO_CLIENT_MDNS_ACTION_ADD, 
+ *
+ * @param result: mDNS result to get action for
+ * @return The action enum value, NABTO_CLIENT_MDNS_ACTION_ADD,
  *         NABTO_CLIENT_MDNS_ACTION_UPDATE or NABTO_CLIENT_MDNS_ACTION_REMOVE.
  */
 NABTO_CLIENT_DECL_PREFIX NabtoClientMdnsAction NABTO_CLIENT_API
@@ -1433,7 +1444,7 @@ nabto_client_future_ready(NabtoClientFuture* future);
  *  nabto_client_future_timed_wait
  *  nabto_client_stop
  *  nabto_client_free
- * 
+ *
  * @param future [in]  The future.
  * @param callback [in]  The callback.
  * @param data [in]  User data for the callback.
@@ -1496,7 +1507,7 @@ nabto_client_future_error_code(NabtoClientFuture* future);
  *
  * A Listener is an object which can listen for a type of events. The
  * listener is initialized to the specific type of events later.
- * 
+ *
  * @param context [in]  The context.
  * @return A new listener.
  */
@@ -1519,7 +1530,7 @@ nabto_client_listener_free(NabtoClientListener* listener);
  * events handler has been stopped the next event or if there's a
  * current unresolved future will resolve imediately with the status
  * code STOPPED.
- * 
+ *
  * @param listener [in]  The listener.
  */
 NABTO_CLIENT_DECL_PREFIX void NABTO_CLIENT_API
@@ -1549,7 +1560,7 @@ nabto_client_string_free(char* str);
 /**
  * Return an english description of an error code. The returned string
  * must not be freed.
- * 
+ *
  * @param error [in]  The error for which a message is wanted.
  * @return the error message.
  */
@@ -1558,10 +1569,10 @@ nabto_client_error_get_message(NabtoClientError error);
 
 /**
  * Return the string representation for an error code. The returned
- * string must not be freed. 
- * 
+ * string must not be freed.
+ *
  * Sample return value NABTO_CLIENT_EC_OK
- * 
+ *
  * @param error [in]  The error code
  * @return The error string.
  */
@@ -1571,7 +1582,7 @@ nabto_client_error_get_string(NabtoClientError error);
 /**
  * Return the version of the nabto client library. The returned string
  * must not be freed.
- * 
+ *
  * @return the version of the client.
  */
 NABTO_CLIENT_DECL_PREFIX const char* NABTO_CLIENT_API
@@ -1585,7 +1596,7 @@ nabto_client_version();
  * callback as that would result in a deadlock. If it's needed to
  * react on a log message a queue is needed such that the invocation
  * of the nabto client sdk can occur from another thread.
- * 
+ *
  * @param context [in]: The NabtoClient context to set the log callback on.
  * @param callback [in]: The callback function.
  * @param data [in]: Passed to the callback along with the log data.
