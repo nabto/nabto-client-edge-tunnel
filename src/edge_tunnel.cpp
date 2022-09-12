@@ -470,8 +470,13 @@ int main(int argc, char** argv)
             } else if (result.count("configure-open-pairing")) {
                 status = IAM::configure_open_pairing_interactive(connection);
             }
-
-            connection->close()->waitForResult();
+            try {
+                connection->close()->waitForResult();
+            } catch(nabto::client::NabtoException& e) {
+                if (e.status().getErrorCode() != nabto::client::Status::STOPPED) {
+                    throw(e);
+                }
+            }
             return status ? 0 : 1;
         } else {
             std::cout << options.help() << std::endl;
