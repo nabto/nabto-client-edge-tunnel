@@ -16,7 +16,6 @@ class Context;
 namespace Configuration
 {
 
-const std::string defaultServerKey = "sk-9c826d2ebb4343a789b280fe22b98305";
 #if defined(_WIN32)
 const std::string homeDirEnvVariable = "APPDATA";
 const std::string nabtoFolder = "nabto";
@@ -58,14 +57,12 @@ class DeviceInfo
 
 class ClientConfiguration {
  public:
-    ClientConfiguration(const std::string serverKey, const std::string serverUrl)
-        : serverKey_(serverKey), serverUrl_(serverUrl)
+    ClientConfiguration(const std::string serverUrl)
+        : serverUrl_(serverUrl)
     {
     }
     std::string getServerUrl() { return serverUrl_; }
-    std::string getServerKey() { return serverKey_; }
  private:
-    std::string serverKey_;
     std::string serverUrl_;
 };
 

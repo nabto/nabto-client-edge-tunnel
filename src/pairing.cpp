@@ -345,10 +345,7 @@ bool param_pair(std::shared_ptr<nabto::client::Context> ctx, const std::string& 
     if (!Config->getServerUrl().empty()) {
         connection->setServerUrl(Config->getServerUrl());
     }
-    else {
-        // TODO(as): No server url found.
-    }
-    connection->setServerKey(Config->getServerKey());
+
     connection->setServerConnectToken(sct);
     json options;
 
