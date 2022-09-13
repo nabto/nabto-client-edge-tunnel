@@ -34,7 +34,6 @@ static struct
 
     bool HasLoadedConfigFile;
     string ServerUrl;
-    string ServerKey;
 } Configuration;
 
 void to_json(json& j, const DeviceInfo& d)
@@ -130,7 +129,6 @@ void CommonInit()
 {
     Configuration.HasLoadedConfigFile = false;
     Configuration.ServerUrl = "";
-    Configuration.ServerKey = "";
 
     json StateContents;
     try
@@ -196,9 +194,7 @@ void InitializeWithDirectory(const string &HomePath)
 
 bool CreateClientConfigurationFile()
 {
-    nlohmann::json root;
-    root["ServerKey"] = defaultServerKey;
-    std::string clientConfig = root.dump(4);
+    std::string clientConfig = "{}";
     return WriteStringToFile(clientConfig, Configuration.ConfigFilePath);
 }
 
@@ -219,7 +215,6 @@ std::unique_ptr<ClientConfiguration> GetConfigInfo()
     json Contents = json::parse(config);
 
     std::string serverUrl;
-    std::string serverKey;
 
     try {
         serverUrl = Contents["ServerUrl"].get<string>();
@@ -227,15 +222,7 @@ std::unique_ptr<ClientConfiguration> GetConfigInfo()
         // fine the server url is optional.
     }
 
-    try {
-        serverKey = Contents["ServerKey"].get<string>();
-    } catch (std::exception& e) {
-        // not fine, the serverkey is required.
-        std::cerr << "The client configuration file " << Configuration.ConfigFilePath << " is missing the required ServerKey configuration parameter" << std::endl;
-        return nullptr;
-    }
-
-    return std::make_unique<ClientConfiguration>(serverKey, serverUrl);
+    return std::make_unique<ClientConfiguration>(serverUrl);
 }
 
 const char* GetConfigFilePath()

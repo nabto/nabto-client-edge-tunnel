@@ -72,13 +72,13 @@ static void printMissingClientConfig(const std::string& filename)
 {
     std::cerr
         << "The example is missing the client configuration file (" << filename << ")." << std::endl
-        << "The client configuration file is a json file which contains" << std::endl
-        << "a server key which the client uses when it needs to make a" << std::endl
-        << "remote connection." << std::endl
+        << "The client configuration file is a json file which can be" << std::endl
+        << "used to change the server URL used for remote connections." << std::endl
+        << "In normal scenarios, the file should simply contain an" << std::endl
+        << "empty json document:"
         << "{" << std::endl
-        << "  \"ServerKey\": \"<server key from the console>\"," << std::endl
-        << "  \"ServerUrl\": \"<optional server url if it is not the default one\"" << std::endl
         << "}" <<std::endl;
+
 }
 
 class CloseListener : public nabto::client::ConnectionEventsCallback {
@@ -153,7 +153,6 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
         connection->setServerUrl(Config->getServerUrl());
     }
 
-    connection->setServerKey(Config->getServerKey());
     connection->setServerConnectToken(device.getSct());
 
     try {
