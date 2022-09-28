@@ -305,17 +305,22 @@ bool tcptunnel(std::shared_ptr<nabto::client::Connection> connection, std::vecto
     return true;
 }
 
-void printDeviceInfo(std::shared_ptr<IAM::PairingInfo> pi) {
+void printDeviceInfo(std::shared_ptr<IAM::PairingInfo> pi)
+{
     auto ms = pi->getModes();
     std::cout << "Successfully retrieved device info:" << std::endl
               << "# Product ID   : " << pi->getProductId() << std::endl
               << "# Device ID    : " << pi->getDeviceId() << std::endl
               << "# Friendly Name: " << pi->getFriendlyName() << std::endl
-              << "# Nabto Version: " << pi->getNabtoVersion() << std::endl
-              << "# App Name     : " << pi->getAppName() << std::endl
-              << "# App Version  : " << pi->getAppVersion() << std::endl
-              << "# Pairing modes:" << std::endl;
-    for (auto mode : ms){
+              << "# Nabto Version: " << pi->getNabtoVersion() << std::endl;
+    if (!pi->getAppName().empty()) {
+        std::cout << "# App Name     : " << pi->getAppName() << std::endl;
+    }
+    if (!pi->getAppVersion().empty()) {
+        std::cout << "# App Version  : " << pi->getAppVersion() << std::endl;
+    }
+    std::cout << "# Pairing modes:" << std::endl;
+    for (auto mode : ms) {
         std::cout << "# * " << IAM::pairingModeAsString(mode) << std::endl;
     }
 }
