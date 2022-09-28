@@ -140,7 +140,7 @@ bool get_user_interactive(std::shared_ptr<nabto::client::Connection> connection)
     std::tie(ec, username) = pick_user_interactive(connection, "Pick a user");
     if (!ec.ok()) {
         ec.printError();
-        return false;    
+        return false;
     }
 
     std::unique_ptr<User> user;
@@ -414,7 +414,7 @@ bool configure_open_pairing_interactive(std::shared_ptr<nabto::client::Connectio
 {
     std::cout << "Configuring open pairing." << std::endl;
     std::cout << "Open pairing allows users to register themselves in the device." << std::endl;
-    
+
     bool localOpenPairing = yn_prompt("Allow Local Open Pairing");
     bool passwordOpenPairing = yn_prompt("Allow Password Open Pairing");
 

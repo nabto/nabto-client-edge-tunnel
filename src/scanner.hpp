@@ -31,7 +31,6 @@ class Scanner {
                 std::string deviceId = result->getDeviceId();
                 std::string txtItemsStr = result->getTxtItems();
                 nlohmann::json txtItems = nlohmann::json::parse(txtItemsStr);
-                std::cout << "txtItems: " << txtItemsStr << std::endl;
                 std::string fn;
                 try {
                     fn = txtItems["fn"].get<std::string>();

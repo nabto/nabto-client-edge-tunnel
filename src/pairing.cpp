@@ -182,7 +182,8 @@ bool interactive_pair(std::shared_ptr<nabto::client::Context> Context)
     {
         std::string productId;
         std::string deviceId;
-        std::tie(productId, deviceId) = devices[deviceChoice];
+        std::string fn;
+        std::tie(productId, deviceId, fn) = devices[deviceChoice];
         connection->setProductId(productId);
         connection->setDeviceId(deviceId);
 
