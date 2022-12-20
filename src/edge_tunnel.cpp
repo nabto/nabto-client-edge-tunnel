@@ -206,8 +206,13 @@ bool list_services(std::shared_ptr<nabto::client::Connection> connection)
         auto data = json::from_cbor(cbor);
         if (data.is_array()) {
             std::cout << "Available services ..." << std::endl;
-            for (auto s : data) {
-                get_service(connection, s.get<std::string>());
+            try {
+                for (auto s : data) {
+                    get_service(connection, s.get<std::string>());
+                }
+            } catch(std::exception& e) {
+                std::cerr << "Failed to get services: " << e.what() << std::endl;
+                return false;
             }
         }
         return true;
