@@ -277,6 +277,10 @@ void from_json(const json& j, PairingInfo& pi)
     } catch (std::exception& e) {}
 
     try {
+        j.at("FriendlyName").get_to(pi.friendlyName_);
+    } catch (std::exception& e) {}
+
+    try {
         std::vector<std::string> modes = j["Modes"].get<std::vector<std::string> >();
         for (auto m : modes) {
             if (m == "LocalOpen") {
@@ -408,5 +412,28 @@ std::pair<IAMError, std::unique_ptr<Settings> > get_settings(std::shared_ptr<nab
         return std::make_pair(IAMError(e), nullptr);
     }
 }
+
+IAMError set_friendly_name(std::shared_ptr<nabto::client::Connection> connection, const std::string& friendlyName)
+{
+    std::string path = "/iam/device-info/friendly-name";
+    nlohmann::json root;
+    root = friendlyName;
+    std::vector<uint8_t> cbor = nlohmann::json::to_cbor(root);
+
+    try {
+        auto coap = connection->createCoap("PUT", path);
+        coap->setRequestPayload(CONTENT_FORMAT_APPLICATION_CBOR, cbor);
+        coap->execute()->waitForResult();
+        int responseCode = coap->getResponseStatusCode();
+        if(responseCode == 204) {
+            return IAMError();
+        }
+        return IAMError(coap);
+    } catch (nabto::client::NabtoException& e) {
+        return IAMError(e);
+    }
+}
+
+
 
 }

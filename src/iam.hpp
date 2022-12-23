@@ -66,12 +66,14 @@ class PairingInfo {
     std::string getAppName() { return appName_; }
     std::string getProductId() { return productId_; }
     std::string getDeviceId() { return deviceId_; }
+    std::string getFriendlyName() { return friendlyName_; }
     std::set<PairingMode> getModes() { return modes_; }
     std::string nabtoVersion_;
     std::string appVersion_;
     std::string appName_;
     std::string productId_;
     std::string deviceId_;
+    std::string friendlyName_;
     std::set<PairingMode> modes_;
 };
 
@@ -101,4 +103,5 @@ IAMError set_settings_password_open_pairing(std::shared_ptr<nabto::client::Conne
 IAMError set_settings_local_open_pairing(std::shared_ptr<nabto::client::Connection> connection, bool enabled);
 std::pair<IAMError, std::unique_ptr<Settings> > get_settings(std::shared_ptr<nabto::client::Connection> connection);
 
+IAMError set_friendly_name(std::shared_ptr<nabto::client::Connection> connection, const std::string& friendlyName);
 } // namespace

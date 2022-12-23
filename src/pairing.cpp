@@ -168,8 +168,9 @@ bool interactive_pair(std::shared_ptr<nabto::client::Context> Context)
     for (size_t i = 0; i < devices.size(); ++i) {
         std::string ProductID;
         std::string DeviceID;
-        std::tie(ProductID, DeviceID) = devices[i];
-        std::cout << "[" << i << "]: ProductId: " << ProductID << " DeviceId: " << DeviceID << std::endl;
+        std::string fn;
+        std::tie(ProductID, DeviceID, fn) = devices[i];
+        std::cout << "[" << i << "]: ProductId: " << ProductID << " DeviceId: " << DeviceID << " Name: " << fn << std::endl;
     }
 
     int deviceChoice = IAM::interactive_choice("Choose a device: ", 0, devices.size());
@@ -181,7 +182,8 @@ bool interactive_pair(std::shared_ptr<nabto::client::Context> Context)
     {
         std::string productId;
         std::string deviceId;
-        std::tie(productId, deviceId) = devices[deviceChoice];
+        std::string fn;
+        std::tie(productId, deviceId, fn) = devices[deviceChoice];
         connection->setProductId(productId);
         connection->setDeviceId(deviceId);
 

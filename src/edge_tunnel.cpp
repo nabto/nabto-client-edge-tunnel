@@ -310,6 +310,26 @@ bool tcptunnel(std::shared_ptr<nabto::client::Connection> connection, std::vecto
     return true;
 }
 
+void printDeviceInfo(std::shared_ptr<IAM::PairingInfo> pi)
+{
+    auto ms = pi->getModes();
+    std::cout << "Successfully retrieved device info:" << std::endl
+              << "# Product ID   : " << pi->getProductId() << std::endl
+              << "# Device ID    : " << pi->getDeviceId() << std::endl
+              << "# Friendly Name: " << pi->getFriendlyName() << std::endl
+              << "# Nabto Version: " << pi->getNabtoVersion() << std::endl;
+    if (!pi->getAppName().empty()) {
+        std::cout << "# App Name     : " << pi->getAppName() << std::endl;
+    }
+    if (!pi->getAppVersion().empty()) {
+        std::cout << "# App Version  : " << pi->getAppVersion() << std::endl;
+    }
+    std::cout << "# Pairing modes:" << std::endl;
+    for (auto mode : ms) {
+        std::cout << "# * " << IAM::pairingModeAsString(mode) << std::endl;
+    }
+}
+
 int main(int argc, char** argv)
 {
     cxxopts::Options options("Tunnel client", "Nabto tunnel client example.");
@@ -343,6 +363,8 @@ int main(int argc, char** argv)
         ("delete-user", "Delete a user on device.")
         ("create-user", "Create a user new interactively in the device.")
         ("configure-open-pairing", "Configure pairing where users can register themselves in the device.")
+        ("set-friendly-name", "Set the friendly name of the device.", cxxopts::value<std::string>())
+        ("get-device-info","Get information about the device configuration")
         ;
 
     options.add_options("TCP Tunnelling")
@@ -428,7 +450,9 @@ int main(int argc, char** argv)
                  result.count("get-user") ||
                  result.count("get-me") ||
                  result.count("create-user") ||
-                 result.count("configure-open-pairing"))
+                 result.count("configure-open-pairing") ||
+                 result.count("set-friendly-name") ||
+                 result.count("get-device-info"))
 
         {
             // For all these commands we need a paired device.
@@ -473,6 +497,28 @@ int main(int argc, char** argv)
                 status = IAM::create_user_interactive(connection);
             } else if (result.count("configure-open-pairing")) {
                 status = IAM::configure_open_pairing_interactive(connection);
+            } else if (result.count("set-friendly-name")) {
+                auto ec = IAM::set_friendly_name(
+                    connection, result["set-friendly-name"].as<std::string>());
+                if (ec.ok()) {
+                    std::cout << "Device successfully renamed to "
+                              << result["set-friendly-name"].as<std::string>()
+                              << std::endl;
+                    status = true;
+                } else {
+                    ec.printError();
+                    status = false;
+                }
+            } else if (result.count("get-device-info")) {
+                IAM::IAMError ec; std::shared_ptr<IAM::PairingInfo> pi;
+                std::tie(ec, pi) = IAM::get_pairing_info(connection);
+                if (!ec.ok()) {
+                    ec.printError();
+                    status = false;
+                } else {
+                    printDeviceInfo(pi);
+                    status = true;
+                }
             }
             try {
                 connection->close()->waitForResult();
