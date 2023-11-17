@@ -89,7 +89,6 @@ class FutureBufferImpl : public FutureBuffer, public std::enable_shared_from_thi
     }
     static void doCallback(NabtoClientFuture* future, NabtoClientError ec, void* data)
     {
-        (void) future;
         FutureBufferImpl* self = (FutureBufferImpl*)data;
         self->ended_ = true;
         self->cb_->run(Status(ec));
@@ -203,7 +202,6 @@ class FutureMdnsResultImpl : public FutureMdnsResult, public std::enable_shared_
     }
     static void doCallback(NabtoClientFuture* future, NabtoClientError ec, void* data)
     {
-        (void) future;
         FutureMdnsResultImpl* self = (FutureMdnsResultImpl*)data;
         self->ended_ = true;
         self->cb_->run(Status(ec));
@@ -276,7 +274,6 @@ class FutureVoidImpl : public FutureVoid, public std::enable_shared_from_this<Fu
 
     static void doCallback(NabtoClientFuture* future, NabtoClientError ec, void* data)
     {
-        (void) future;
         FutureVoidImpl* self = (FutureVoidImpl*)data;
         self->ended_ = true;
         self->cb_->run(Status(ec));
@@ -816,20 +813,27 @@ class LogMessageImpl : public LogMessage {
 class LoggerProxy {
  public:
     LoggerProxy(std::shared_ptr<Logger> logger, NabtoClient* context)
-        : logger_(logger)
+        : logger_(logger), context_(context)
     {
         nabto_client_set_log_callback(context, &LoggerProxy::cLogCallback, this);
     }
 
-    static void cLogCallback(const NabtoClientLogMessage* message, void* userData)
-    {
-        LoggerProxy* proxy = (LoggerProxy*)userData;
-        LogMessageImpl msg = LogMessageImpl(message->message, message->severityString);
-        proxy->logger_->log(msg);
+    ~LoggerProxy() {
+        nabto_client_set_log_callback(context_, nullptr, nullptr);
+    }
+
+    static void cLogCallback(const NabtoClientLogMessage* message, void* userData) {
+        LoggerProxy *proxy = (LoggerProxy *) userData;
+        std::shared_ptr<Logger> logger = proxy->logger_;
+        if (logger) {
+            LogMessageImpl msg = LogMessageImpl(message->message, message->severityString);
+            logger->log(msg);
+        }
     }
 
  private:
     std::shared_ptr<Logger> logger_;
+    NabtoClient* context_;
 };
 
 class ContextImpl : public Context {
@@ -839,6 +843,7 @@ class ContextImpl : public Context {
     }
     ~ContextImpl() {
         nabto_client_stop(context_);
+        loggerProxy_.reset();
         nabto_client_free(context_);
     }
 
