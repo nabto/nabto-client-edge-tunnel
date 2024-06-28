@@ -90,9 +90,39 @@ void from_json(const json &j, User &user) {
     // name is mandatory
     j.at("Username").get_to(user.username_);
 
-    try {
-        j.at("Fingerprint").get_to(user.fingerprint_);
-    } catch (const std::exception& e) { }
+    if (j.contains("Fingerprints")) {
+        for (auto f : j["Fingerprints"]) {
+            Fingerprint fp;
+            if (f.contains("Fingerprint")) {
+                auto tmp = f["Fingerprint"];
+                if (tmp.is_string()) {
+                    tmp.get_to(fp.fingerprint_);
+                }
+            }
+            else {
+                continue;
+            }
+
+            if (f.contains("Name")) {
+                auto tmp = f["Name"];
+                if (tmp.is_string()) {
+                    tmp.get_to(fp.name_);
+                }
+            }
+            user.fingerprints_.push_back(fp);
+        }
+    }
+    else {
+        if (j.contains("Fingerprint")) {
+            auto tmp = j["Fingerprint"];
+            if (tmp.is_string()) {
+                Fingerprint fp;
+                tmp.get_to(fp.fingerprint_);
+                user.fingerprints_.push_back(fp);
+            }
+        }
+    }
+
     try {
         j.at("Sct").get_to(user.sct_);
     } catch (const std::exception& e) { }

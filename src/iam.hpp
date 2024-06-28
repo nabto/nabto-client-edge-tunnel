@@ -6,6 +6,7 @@
 #include <string>
 #include <iostream>
 #include <set>
+#include <vector>
 
 #include <nlohmann/json.hpp>
 
@@ -30,21 +31,30 @@ class IAMError {
     std::string message_;
 };
 
+class Fingerprint {
+public:
+    std::string fingerprint_;
+    std::string name_;
+};
+
 class User {
  public:
     static std::unique_ptr<User> create(const nlohmann::json& in);
     std::string getUsername() { return username_; }
     std::string getRole() { return role_; }
     std::string getSct() { return sct_; }
-    std::string getFingerprint() { return fingerprint_; }
     void print() {
-        std::cout << "Username: " << username_ << ", Role: " << role_ << ", SCT: " << sct_ << ", Fingerprint: " << fingerprint_ << std::endl;
+        std::cout << "Username: " << username_ << ", Role: " << role_ << ", SCT: " << sct_ << ", Fingerprints:";
+        for (auto f : fingerprints_) {
+            std::cout << " " << f.name_ << (f.name_.empty() ? "" : ":") << f.fingerprint_;
+        }
+        std::cout << std::endl;
     }
  public:
     std::string username_;
     std::string role_;
     std::string sct_;
-    std::string fingerprint_;
+    std::vector<Fingerprint> fingerprints_;
 };
 
 const static int CONTENT_FORMAT_APPLICATION_CBOR = 60; // rfc 7059
