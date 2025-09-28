@@ -47,18 +47,35 @@ void to_json(json& j, const DeviceInfo& d)
     if (!d.directCandidate_.empty()) {
         j["DirectCandidate"] = d.directCandidate_;
     }
+    if (!d.apiKey_.empty()) {
+        j["ApiKey"] = d.apiKey_;
+    }
 }
 
 void from_json(const json& j, DeviceInfo& d)
 {
-    j.at("DeviceFingerprint").get_to(d.deviceFingerprint_);
     j.at("DeviceId").get_to(d.deviceId_);
     j.at("ProductId").get_to(d.productId_);
-    j.at("Sct").get_to(d.sct_);
+    
+    try {
+        j.at("DeviceFingerprint").get_to(d.deviceFingerprint_);
+    } catch (const std::exception& e) {
+        // no device fingerprint, fine for legacy API key auth
+    }
+    try {
+        j.at("Sct").get_to(d.sct_);
+    } catch (const std::exception& e) {
+        // no SCT, fine for legacy API key auth
+    }
     try {
         j.at("DirectCandidate").get_to(d.directCandidate_);
     } catch (const std::exception& e) {
         // no direct candidate, fine
+    }
+    try {
+        j.at("ApiKey").get_to(d.apiKey_);
+    } catch (const std::exception& e) {
+        // no api key, fine
     }
 }
 

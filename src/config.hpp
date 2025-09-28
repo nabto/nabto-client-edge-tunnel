@@ -45,6 +45,7 @@ class DeviceInfo
     std::string getDeviceFingerprint() { return deviceFingerprint_; }
     std::string getSct() { return sct_; }
     std::string getDirectCandidate() { return directCandidate_; }
+    std::string getApiKey() { return apiKey_; }
     int getIndex() { return index_; }
 
     int index_;
@@ -53,6 +54,7 @@ class DeviceInfo
     std::string deviceFingerprint_;
     std::string sct_;
     std::string directCandidate_;
+    std::string apiKey_;
 };
 
 class ClientConfiguration {

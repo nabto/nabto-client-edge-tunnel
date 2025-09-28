@@ -153,7 +153,13 @@ std::shared_ptr<nabto::client::Connection> createConnection(std::shared_ptr<nabt
         connection->setServerUrl(Config->getServerUrl());
     }
 
-    connection->setServerConnectToken(device.getSct());
+    if (!device.getApiKey().empty()) {
+        connection->setServerKey(device.getApiKey());
+    }
+
+    if (!device.getSct().empty()) {
+        connection->setServerConnectToken(device.getSct());
+    }
 
     try {
         connection->connect()->waitForResult();
