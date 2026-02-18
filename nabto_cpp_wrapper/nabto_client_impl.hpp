@@ -763,7 +763,10 @@ public:
     nabto_client_set_log_callback(context, &LoggerProxy::cLogCallback, this);
   }
 
-  ~LoggerProxy() { nabto_client_set_log_callback(context_, nullptr, nullptr); }
+  ~LoggerProxy() {
+    logger_ = nullptr;
+    nabto_client_set_log_callback(context_, NULL, NULL);
+  }
 
   static void cLogCallback(const NabtoClientLogMessage *message,
                            void *userData) {
