@@ -14,10 +14,10 @@ jobs:
     runs-on: ${{matrix.os}}
     strategy:
       matrix:
-        os: [windows-2022, ubuntu-22.04, macos-12]
+        os: [windows-2022, ubuntu-22.04, macos-14]
 
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Configure cmake
         run: mkdir build && cd build && cmake -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_INSTALL_PREFIX=${{ github.workspace }}/artifact ..
@@ -33,7 +33,7 @@ jobs:
         name: Test run
         run: ${{ github.workspace }}/artifact/edge_tunnel_client
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
           name: ${{ runner.os }}-artifact
           path: ${{ github.workspace }}/artifact/
@@ -48,7 +48,7 @@ jobs:
 
     if: github.event_name == 'release'
     steps:
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         with:
           path: ${{ github.workspace }}/artifacts
       - name: Make asset files
@@ -69,30 +69,10 @@ jobs:
           tar -czf ${{ github.workspace }}/artifacts/edge_tunnel_client-macos.tar.gz edge_tunnel_client
           rm -r edge_tunnel_client
 
-      - name: Upload Linux asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v2
         with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ github.workspace }}/artifacts/edge_tunnel_client-linux.tar.gz
-          asset_name: edge_tunnel_client-linux.tar.gz
-          asset_content_type: application/gzip
-      - name: Upload Windows asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ github.workspace }}/artifacts/edge_tunnel_client-windows.zip
-          asset_name: edge_tunnel_client-windows.zip
-          asset_content_type: application/zip
-      - name: Upload MacOS asset
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ github.event.release.upload_url }}
-          asset_path: ${{ github.workspace }}/artifacts/edge_tunnel_client-macos.tar.gz
-          asset_name: edge_tunnel_client-macos.tar.gz
-          asset_content_type: application/gzip
+          files: |
+            ${{ github.workspace }}/artifacts/edge_tunnel_client-linux.tar.gz
+            ${{ github.workspace }}/artifacts/edge_tunnel_client-windows.zip
+            ${{ github.workspace }}/artifacts/edge_tunnel_client-macos.tar.gz
