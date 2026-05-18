@@ -134,6 +134,10 @@ class FutureVoid : public Future {
  public:
     virtual ~FutureVoid() {}
     virtual void waitForResult() = 0;
+    // Wait at most timeoutMilliseconds for the future to resolve.
+    // Returns true if resolved (throws NabtoException on a non-OK status).
+    // Returns false if the timeout expired before the future resolved.
+    virtual bool waitForResult(int timeoutMilliseconds) = 0;
     virtual void getResult() = 0;
 };
 

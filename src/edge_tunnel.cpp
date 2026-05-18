@@ -128,7 +128,7 @@ void handleFingerprintMismatch(
 
 std::shared_ptr<nabto::client::Connection>
 createConnection(std::shared_ptr<nabto::client::Context> context,
-                 Configuration::DeviceInfo device) {
+                 Configuration::DeviceInfo device, bool waitForAttach) {
   auto Config = Configuration::GetConfigInfo();
   if (!Config) {
     printMissingClientConfig(Configuration::GetConfigFilePath());
@@ -159,8 +159,26 @@ createConnection(std::shared_ptr<nabto::client::Context> context,
 
   connection->setServerConnectToken(device.getSct());
 
+  if (waitForAttach) {
+    json options;
+    options["IgnoreDeviceNotAttached"] = true;
+    connection->setOptions(options.dump());
+  }
+
+  std::cout << "Connecting to device: " << device.getProductId() << "."
+            << device.getDeviceId() << std::endl;
+
   try {
-    connection->connect()->waitForResult();
+    auto future = connection->connect();
+    if (waitForAttach) {
+      std::cout << "Waiting for device to attach" << std::flush;
+      while (!future->waitForResult(1000)) {
+        std::cout << "." << std::flush;
+      }
+      std::cout << std::endl;
+    } else {
+      future->waitForResult();
+    }
   } catch (nabto::client::NabtoException &e) {
     if (e.status().getErrorCode() == nabto::client::Status::NO_CHANNELS) {
       auto localStatus =
@@ -356,7 +374,10 @@ int main(int argc, char **argv) {
       "Override the directory in which configuration files are saved to.",
       cxxopts::value<std::string>())(
       "log-level", "Log level (none|error|info|trace)",
-      cxxopts::value<std::string>()->default_value("error"));
+      cxxopts::value<std::string>()->default_value("error"))(
+      "wait-for-attach",
+      "Wait for the device to attach to the basestation if it is not "
+      "already attached. Prints '.' periodically while waiting.");
   options.add_options("Bookmarks")("bookmarks", "List bookmarked devices")(
       "b,bookmark", "Select a bookmarked device to use with other commands.",
       cxxopts::value<uint32_t>()->default_value("0"))(
@@ -486,7 +507,8 @@ int main(int argc, char **argv) {
         return 1;
       }
 
-      auto connection = createConnection(context, *Device);
+      auto connection = createConnection(context, *Device,
+                                         result.count("wait-for-attach") > 0);
       if (!connection) {
         return 1;
       }
