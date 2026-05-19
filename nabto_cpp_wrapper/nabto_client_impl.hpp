@@ -246,6 +246,11 @@ public:
     if (ec == NABTO_CLIENT_EC_FUTURE_NOT_RESOLVED) {
       return false;
     }
+    if (ec == NABTO_CLIENT_EC_COULD_BLOCK) {
+      // Called from within a future callback; the future is not resolved,
+      // so do not mark ended_ — the destructor must keep the future alive.
+      throw NabtoException(ec);
+    }
     ended_ = true;
     if (ec) {
       throw NabtoException(ec);
