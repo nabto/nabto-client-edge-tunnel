@@ -241,6 +241,23 @@ public:
     return getResult();
   }
 
+  bool waitForResult(int timeoutMilliseconds) {
+    auto ec = nabto_client_future_timed_wait(future_, timeoutMilliseconds);
+    if (ec == NABTO_CLIENT_EC_FUTURE_NOT_RESOLVED) {
+      return false;
+    }
+    if (ec == NABTO_CLIENT_EC_COULD_BLOCK) {
+      // Called from within a future callback; the future is not resolved,
+      // so do not mark ended_ — the destructor must keep the future alive.
+      throw NabtoException(ec);
+    }
+    ended_ = true;
+    if (ec) {
+      throw NabtoException(ec);
+    }
+    return true;
+  }
+
   static void doCallback(NabtoClientFuture *future, NabtoClientError ec,
                          void *data) {
     FutureVoidImpl *self = (FutureVoidImpl *)data;
@@ -249,7 +266,6 @@ public:
     self->selfReference_ = nullptr;
   }
 
-  // bool waitFor(int milliseconds) = 0;
   void callback(std::shared_ptr<FutureCallback> cb) {
     cb_ = cb;
     selfReference_ = shared_from_this();
